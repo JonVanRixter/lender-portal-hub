@@ -80,16 +80,15 @@ function PortfolioHealthCard() {
 function ScoreDistributionCard() {
   const bands = useMemo(() => {
     const b = [
-      { range: "0–24", count: 0, fill: RAG_COLORS.Red },
-      { range: "25–49", count: 0, fill: RAG_COLORS.Red },
-      { range: "50–74", count: 0, fill: RAG_COLORS.Amber },
-      { range: "75–100", count: 0, fill: RAG_COLORS.Green },
+      { range: "0–24", count: 0, fill: RAG_COLORS.Red, dealers: [] as Dealer[] },
+      { range: "25–49", count: 0, fill: RAG_COLORS.Red, dealers: [] as Dealer[] },
+      { range: "50–74", count: 0, fill: RAG_COLORS.Amber, dealers: [] as Dealer[] },
+      { range: "75–100", count: 0, fill: RAG_COLORS.Green, dealers: [] as Dealer[] },
     ];
     dealers.forEach((d) => {
-      if (d.overallScore < 25) b[0].count++;
-      else if (d.overallScore < 50) b[1].count++;
-      else if (d.overallScore < 75) b[2].count++;
-      else b[3].count++;
+      const idx = d.overallScore < 25 ? 0 : d.overallScore < 50 ? 1 : d.overallScore < 75 ? 2 : 3;
+      b[idx].count++;
+      b[idx].dealers.push(d);
     });
     return b;
   }, []);
@@ -99,7 +98,7 @@ function ScoreDistributionCard() {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Score Distribution</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={bands}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(240,6%,88%)" />
@@ -113,6 +112,20 @@ function ScoreDistributionCard() {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        <div className="space-y-2">
+          {bands.filter((b) => b.count > 0).map((b) => (
+            <div key={b.range} className="flex items-start gap-2 text-xs">
+              <span className="inline-block rounded px-1.5 py-0.5 font-semibold text-white shrink-0" style={{ backgroundColor: b.fill }}>{b.range}</span>
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                {b.dealers.map((d) => (
+                  <button key={d.id} onClick={() => window.location.href = `/dealers/${d.id}`} className="text-primary hover:underline cursor-pointer">
+                    {d.tradingName} ({d.overallScore})
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
