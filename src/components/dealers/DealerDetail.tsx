@@ -81,7 +81,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dealers
         </Button>
 
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4" data-tour="dealer-score-card">
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-foreground">{dealer.name}</h1>
@@ -97,7 +97,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
                 CSS: {dealer.cssStatus}
               </Badge>
             )}
-            <Button onClick={handleOpenReAudit} className="gap-1.5 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white">
+            <Button onClick={handleOpenReAudit} className="gap-1.5 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white" data-tour="update-audit-btn">
               <RefreshCw className="h-4 w-4" /> Update Audit
             </Button>
           </div>
@@ -106,7 +106,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
 
       {/* Threshold Breach Banner */}
       {activeBreachAlert && (
-        <div className="rounded-md border border-rag-red/30 bg-rag-red/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="rounded-md border border-rag-red/30 bg-rag-red/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-tour="breach-banner">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-rag-red mt-0.5 shrink-0" />
             <div>
@@ -228,7 +228,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
 
       {/* Audit Sections */}
       {dealer.sections && dealer.sections.length > 0 && (
-        <Card className="border-border">
+        <Card className="border-border" data-tour="audit-sections">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Audit Sections</CardTitle>
           </CardHeader>
@@ -288,7 +288,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
 
         {/* Audit History */}
         {dealer.auditHistory && dealer.auditHistory.length > 0 && (
-          <Card className="border-border">
+          <Card className="border-border" data-tour="audit-history">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Audit History</CardTitle>
             </CardHeader>

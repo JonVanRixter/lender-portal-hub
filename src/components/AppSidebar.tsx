@@ -76,7 +76,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block lg:shrink-0">{sidebar}</aside>
+      <aside className="hidden lg:block lg:shrink-0" data-tour="sidebar">{sidebar}</aside>
 
       {/* Mobile drawer overlay */}
       {open && (

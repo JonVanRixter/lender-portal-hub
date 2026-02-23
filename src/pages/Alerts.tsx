@@ -70,7 +70,7 @@ export default function AlertsPage() {
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="alert-table">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Alerts</h1>
         <p className="text-sm text-muted-foreground">Review and manage compliance alerts</p>

@@ -140,3 +140,40 @@
 - [ ] Banner "Acknowledge Alert" → removes banner, updates alert status
 - [ ] Banner "Re-run Audit Now" → opens modal with breach context
 - [ ] After re-run, if score recovers → RAG badge updates, banner disappears
+
+## EULA & ONBOARDING TOUR
+
+### EULA
+- [ ] EULA modal fires immediately after first login
+- [ ] Dark overlay blocks all interaction behind modal
+- [ ] "Accept & Continue" button disabled until checkbox ticked
+- [ ] Checkbox ticked → "Accept & Continue" becomes active
+- [ ] Accept → localStorage key 'dealerguard_eula_accepted' = 'true'
+- [ ] Accept → tour launches immediately
+- [ ] "Decline & Logout" → session cleared, back to login screen
+- [ ] Second login with same session → EULA does not re-appear
+- [ ] Clear localStorage → EULA re-appears on next login
+
+### GUIDED TOUR
+- [ ] Tour launches automatically after EULA accepted
+- [ ] Step 1 shows welcome message centred on screen
+- [ ] Highlighted elements are visible through the overlay
+- [ ] TCG yellow (#fcba09) glow border on highlighted element
+- [ ] Tooltip shows correct heading and body text for each step
+- [ ] Progress indicator updates correctly ("Step X of 18")
+- [ ] "→ Next" button advances to next step
+- [ ] "← Back" button returns to previous step
+- [ ] "← Back" is disabled on Step 1
+- [ ] Right arrow key advances step
+- [ ] Left arrow key goes back a step
+- [ ] Tour navigates to correct route for each step (e.g. /dealers/d001 for step 9)
+- [ ] "Skip Tour" link shows confirmation dialog
+- [ ] Skip confirmation "Yes, skip" → tour dismissed, toast shown, localStorage set
+- [ ] Skip confirmation "Continue tour" → tour resumes at current step
+- [ ] Escape key triggers skip confirmation dialog
+- [ ] Final step shows "Go to Dashboard" button
+- [ ] Final step "Go to Dashboard" → navigates to /dashboard, tour dismissed
+- [ ] After completing tour → localStorage 'dealerguard_tour_completed' = 'true'
+- [ ] Second login after completing tour → tour does not re-appear
+- [ ] Clear localStorage → tour re-appears after EULA on next login
+- [ ] Toast "You're all set!" shown after tour complete or skip
