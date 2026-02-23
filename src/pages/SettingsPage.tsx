@@ -189,7 +189,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* ─── RAG Thresholds ─── */}
-      <Card className="border-border">
+      <Card className="border-border" data-tour="rag-thresholds">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">RAG Threshold Configuration</CardTitle>
         </CardHeader>

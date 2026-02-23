@@ -31,17 +31,17 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-1 border-border">
+        <Card className="lg:col-span-1 border-border" data-tour="portfolio-health">
           <CardContent className="p-5">
             <PortfolioHealthChart counts={ragCounts} onSegmentClick={setRagFilter} activeFilter={ragFilter} />
           </CardContent>
         </Card>
-        <div className="lg:col-span-2 flex flex-col justify-center">
+        <div className="lg:col-span-2 flex flex-col justify-center" data-tour="kpi-cards">
           <KpiCards redCount={ragCounts.Red} averageScore={avgScore} />
         </div>
       </div>
 
-      <Card className="border-border">
+      <Card className="border-border" data-tour="dealer-watchlist">
         <CardContent className="p-5">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Dealer Watchlist</h3>
           <DealerWatchlist dealers={dealers} ragFilter={ragFilter} onRagFilterChange={setRagFilter} />

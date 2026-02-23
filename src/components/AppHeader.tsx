@@ -66,7 +66,7 @@ export function AppHeader({ onMenuToggle }: AppHeaderProps) {
         {/* Notification bell popover */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative text-primary-foreground hover:bg-white/10">
+            <Button variant="ghost" size="icon" className="relative text-primary-foreground hover:bg-white/10" data-tour="notification-bell">
               <Bell className="h-5 w-5" />
               {pendingCount > 0 && (
                 <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">

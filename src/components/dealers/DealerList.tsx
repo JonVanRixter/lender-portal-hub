@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,10 +70,15 @@ export function DealerList({ dealers }: { dealers: Dealer[] }) {
   );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dealers</h1>
-        <p className="text-sm text-muted-foreground">Manage and monitor dealer compliance profiles</p>
+    <div className="space-y-4" data-tour="dealer-table">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dealers</h1>
+          <p className="text-sm text-muted-foreground">Manage and monitor dealer compliance profiles</p>
+        </div>
+        <Button data-tour="add-dealer-btn" className="gap-2" onClick={() => toast({ title: "Coming Soon", description: "Dealer onboarding wizard available in full MVP." })}>
+          <Plus className="h-4 w-4" /> Add New Dealer
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">

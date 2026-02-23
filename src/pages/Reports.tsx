@@ -588,7 +588,7 @@ export default function Reports() {
       </div>
 
       {/* Section A — Portfolio Summary */}
-      <div>
+      <div data-tour="reports-summary">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Portfolio Summary Report</h1>
