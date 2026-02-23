@@ -66,8 +66,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4 space-y-1">
-        <p className="text-xs font-semibold text-accent">#CaringNotScaring</p>
+      <div className="border-t border-sidebar-border p-4">
         <p className="text-[10px] text-sidebar-muted">DealerGuard v0.1 POC</p>
       </div>
     </div>

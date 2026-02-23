@@ -83,8 +83,7 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
-      <p className="mt-6 text-xs font-semibold text-accent">#CaringNotScaring</p>
-      <p className="mt-1 text-[10px] text-primary-foreground/50">© The Compliance Guys</p>
+      <p className="mt-6 text-[10px] text-primary-foreground/50">© The Compliance Guys</p>
     </div>
   );
 }
