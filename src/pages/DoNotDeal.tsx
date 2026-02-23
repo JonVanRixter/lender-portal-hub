@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, ChevronLeft, ChevronRight, ShieldBan } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, ShieldBan, AlertTriangle } from "lucide-react";
+import { doNotDealEntries as initialEntries } from "@/data/mockData";
+import type { DoNotDealEntry, DndEntityType, DndReason } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,53 +23,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type EntityType = "Dealer" | "Director";
-type DndReason = "Failed checks" | "Fraudulent activity" | "Non-payment" | "Other";
-
-interface DndEntry {
-  id: string;
-  entityName: string;
-  entityType: EntityType;
-  companiesHouseNumber: string;
-  reason: DndReason;
-  notes: string;
-  dateAdded: string;
-  addedBy: string;
-}
-
-const initialEntries: DndEntry[] = [
-  { id: "dnd1", entityName: "Apex Deals Ltd", entityType: "Dealer", companiesHouseNumber: "12345678", reason: "Fraudulent activity", notes: "Falsified MOT records discovered during audit.", dateAdded: "2025-11-15T10:00:00Z", addedBy: "Sarah Mitchell" },
-  { id: "dnd2", entityName: "Mark Reynolds", entityType: "Director", companiesHouseNumber: "", reason: "Failed checks", notes: "DBS check returned disqualified director status.", dateAdded: "2025-12-02T14:00:00Z", addedBy: "James Hart" },
-  { id: "dnd3", entityName: "FastTrack Motors", entityType: "Dealer", companiesHouseNumber: "87654321", reason: "Non-payment", notes: "Outstanding balance of £42,000 unpaid for 90+ days.", dateAdded: "2026-01-08T09:30:00Z", addedBy: "Sarah Mitchell" },
-  { id: "dnd4", entityName: "Linda Osei", entityType: "Director", companiesHouseNumber: "", reason: "Fraudulent activity", notes: "Connected to fraudulent finance applications at two dealerships.", dateAdded: "2026-01-20T16:00:00Z", addedBy: "Emily Chen" },
-  { id: "dnd5", entityName: "BrightStar Autos", entityType: "Dealer", companiesHouseNumber: "11223344", reason: "Failed checks", notes: "FCA authorisation revoked – no longer permitted to trade.", dateAdded: "2026-02-05T11:00:00Z", addedBy: "James Hart" },
-  { id: "dnd6", entityName: "Roger Pemberton", entityType: "Director", companiesHouseNumber: "", reason: "Other", notes: "Subject of ongoing SFO investigation.", dateAdded: "2026-02-10T08:30:00Z", addedBy: "Sarah Mitchell" },
-  { id: "dnd7", entityName: "Valley View Cars", entityType: "Dealer", companiesHouseNumber: "99887766", reason: "Non-payment", notes: "Repeated failed direct debits; no response to collections.", dateAdded: "2026-02-18T13:00:00Z", addedBy: "David Okonkwo" },
-];
-
 const REASON_PILL: Record<DndReason, string> = {
-  "Failed checks": "bg-rag-amber/15 text-rag-amber",
   "Fraudulent activity": "bg-rag-red/15 text-rag-red",
+  "Failed compliance checks": "bg-rag-amber/15 text-rag-amber",
   "Non-payment": "bg-rag-red/15 text-rag-red",
   Other: "bg-muted text-muted-foreground",
 };
 
-const TYPE_PILL: Record<EntityType, string> = {
+const TYPE_PILL: Record<DndEntityType, string> = {
   Dealer: "bg-primary/15 text-primary",
   Director: "bg-rag-amber/15 text-rag-amber",
 };
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 5;
 
 export default function DoNotDeal() {
   const { toast } = useToast();
-  const [entries, setEntries] = useState<DndEntry[]>(initialEntries);
+  const [entries, setEntries] = useState<DoNotDealEntry[]>(initialEntries);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   // Modal state
   const [showAdd, setShowAdd] = useState(false);
-  const [newType, setNewType] = useState<EntityType>("Dealer");
+  const [newType, setNewType] = useState<DndEntityType>("Dealer");
   const [newName, setNewName] = useState("");
   const [newCH, setNewCH] = useState("");
   const [newReason, setNewReason] = useState<DndReason | "">("");
@@ -75,7 +55,8 @@ export default function DoNotDeal() {
   const filtered = search
     ? entries.filter((e) =>
         e.entityName.toLowerCase().includes(search.toLowerCase()) ||
-        e.reason.toLowerCase().includes(search.toLowerCase())
+        e.reason.toLowerCase().includes(search.toLowerCase()) ||
+        e.notes.toLowerCase().includes(search.toLowerCase())
       )
     : entries;
 
@@ -96,15 +77,16 @@ export default function DoNotDeal() {
 
   const handleAdd = () => {
     if (!newName || !newReason || !newNotes) return;
-    const entry: DndEntry = {
+    const entry: DoNotDealEntry = {
       id: `dnd-${Date.now()}`,
       entityName: newName,
       entityType: newType,
-      companiesHouseNumber: newCH,
+      companiesHouseNumber: newCH || null,
       reason: newReason as DndReason,
       notes: newNotes,
-      dateAdded: new Date().toISOString(),
+      dateAdded: new Date().toISOString().slice(0, 10),
       addedBy: "Test User",
+      failedChecks: [],
     };
     setEntries((prev) => [entry, ...prev]);
     setShowAdd(false);
@@ -123,7 +105,7 @@ export default function DoNotDeal() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Do Not Deal</h1>
-          <p className="text-sm text-muted-foreground">Restricted entities and banned dealers</p>
+          <p className="text-sm text-muted-foreground">Restricted entities and banned dealers/directors</p>
         </div>
         <Button className="gap-2" onClick={() => setShowAdd(true)}>
           <Plus className="h-4 w-4" />
@@ -135,60 +117,79 @@ export default function DoNotDeal() {
       <div className="relative max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name or reason…"
+          placeholder="Search by name, reason or notes…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           className="pl-9 h-9"
         />
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-md border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entity Name</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reason</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Date Added</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Added By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-12 text-center">
-                  <ShieldBan className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-                  <p className="text-muted-foreground">No entries found.</p>
-                </td>
-              </tr>
-            ) : (
-              paginated.map((e) => (
-                <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors group">
-                  <td className="px-3 py-2.5">
-                    <p className="font-medium text-foreground">{e.entityName}</p>
-                    {e.companiesHouseNumber && (
-                      <p className="text-xs text-muted-foreground">CH: {e.companiesHouseNumber}</p>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${TYPE_PILL[e.entityType]}`}>
-                      {e.entityType}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${REASON_PILL[e.reason]}`}>
-                      {e.reason}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-0.5 max-w-xs truncate hidden sm:block">{e.notes}</p>
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap hidden md:table-cell">{fmtDate(e.dateAdded)}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground hidden lg:table-cell">{e.addedBy}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Cards */}
+      <div className="space-y-3">
+        {paginated.length === 0 ? (
+          <div className="rounded-md border border-border bg-card p-12 text-center">
+            <ShieldBan className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+            <p className="text-muted-foreground">No entries found.</p>
+          </div>
+        ) : (
+          paginated.map((e) => (
+            <div
+              key={e.id}
+              className="rounded-md border border-border bg-card hover:border-rag-red/30 transition-colors cursor-pointer"
+              onClick={() => setExpanded(expanded === e.id ? null : e.id)}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rag-red/10">
+                    <AlertTriangle className="h-4 w-4 text-rag-red" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{e.entityName}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${TYPE_PILL[e.entityType]}`}>
+                        {e.entityType}
+                      </span>
+                      {e.companiesHouseNumber && (
+                        <span className="text-xs text-muted-foreground">CH: {e.companiesHouseNumber}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${REASON_PILL[e.reason]}`}>
+                    {e.reason}
+                  </span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(e.dateAdded)}</span>
+                </div>
+              </div>
+
+              {expanded === e.id && (
+                <div className="border-t border-border px-4 py-3 space-y-3 bg-muted/30">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm text-foreground leading-relaxed">{e.notes}</p>
+                  </div>
+                  {e.failedChecks.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Failed Checks</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {e.failedChecks.map((c) => (
+                          <Badge key={c} variant="outline" className="text-xs border-rag-red/30 text-rag-red">
+                            {c}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>Added by: <span className="text-foreground font-medium">{e.addedBy}</span></span>
+                    <span>Date: {fmtDate(e.dateAdded)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Pagination */}
@@ -216,7 +217,7 @@ export default function DoNotDeal() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Entity Type</Label>
-                <Select value={newType} onValueChange={(v) => setNewType(v as EntityType)}>
+                <Select value={newType} onValueChange={(v) => setNewType(v as DndEntityType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Dealer">Dealer</SelectItem>
@@ -240,8 +241,8 @@ export default function DoNotDeal() {
                 <Select value={newReason} onValueChange={(v) => setNewReason(v as DndReason)}>
                   <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Failed checks">Failed checks</SelectItem>
                     <SelectItem value="Fraudulent activity">Fraudulent activity</SelectItem>
+                    <SelectItem value="Failed compliance checks">Failed compliance checks</SelectItem>
                     <SelectItem value="Non-payment">Non-payment</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>

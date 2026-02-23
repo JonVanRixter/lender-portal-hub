@@ -1,11 +1,11 @@
 import { ClipboardCheck, AlertTriangle, FileUp, RotateCcw } from "lucide-react";
-import type { ActivityItem } from "@/types";
+import type { ActivityItem, ActivityEventType } from "@/types";
 
-const EVENT_CONFIG: Record<ActivityItem["eventType"], { icon: typeof ClipboardCheck; colorClass: string }> = {
-  "Audit completed": { icon: ClipboardCheck, colorClass: "text-rag-green bg-rag-green/10" },
-  "Threshold breach": { icon: AlertTriangle, colorClass: "text-rag-red bg-rag-red/10" },
-  "Document uploaded": { icon: FileUp, colorClass: "text-primary bg-primary/10" },
-  "Re-audit triggered": { icon: RotateCcw, colorClass: "text-rag-amber bg-rag-amber/10" },
+const EVENT_CONFIG: Record<ActivityEventType, { icon: typeof ClipboardCheck; colorClass: string }> = {
+  "Audit Completed": { icon: ClipboardCheck, colorClass: "text-rag-green bg-rag-green/10" },
+  "Threshold Breach": { icon: AlertTriangle, colorClass: "text-rag-red bg-rag-red/10" },
+  "Document Uploaded": { icon: FileUp, colorClass: "text-primary bg-primary/10" },
+  "Manual Re-Audit Triggered": { icon: RotateCcw, colorClass: "text-rag-amber bg-rag-amber/10" },
 };
 
 function timeAgo(iso: string) {
@@ -34,7 +34,7 @@ export function RecentActivityFeed({ items }: { items: ActivityItem[] }) {
                 <p className="text-sm text-foreground truncate">
                   <span className="font-medium">{item.dealerName}</span>
                 </p>
-                <p className="text-xs text-muted-foreground">{item.eventType}</p>
+                <p className="text-xs text-muted-foreground">{item.detail}</p>
               </div>
               <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo(item.timestamp)}</span>
             </div>

@@ -55,7 +55,10 @@ export default function Documents() {
       } else if (sortKey === "uploadDate") {
         cmp = new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime();
       } else {
-        cmp = new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+        // Sort nulls (no expiry) to the end
+        const aExp = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
+        const bExp = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
+        cmp = aExp - bExp;
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -86,8 +89,10 @@ export default function Documents() {
     setPage(0);
   };
 
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const fmtDate = (iso: string | null) =>
+    iso
+      ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      : "—";
 
   return (
     <div className="space-y-6">
