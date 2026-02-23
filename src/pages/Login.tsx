@@ -27,15 +27,15 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm shadow-lg border-border">
-        <CardHeader className="items-center space-y-3 pb-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Shield className="h-6 w-6 text-primary-foreground" />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-primary p-4">
+      <Card className="w-full max-w-sm shadow-2xl border-0">
+        <CardHeader className="items-center space-y-4 pb-2">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-accent">
+            <Shield className="h-7 w-7 text-accent-foreground" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-foreground">DealerGuard</h1>
-            <p className="text-sm text-muted-foreground">Lender Portal</p>
+            <h1 className="text-xl font-extrabold text-foreground uppercase tracking-wide">DealerGuard</h1>
+            <p className="text-sm text-muted-foreground font-medium">Lender Portal</p>
           </div>
         </CardHeader>
         <CardContent>
@@ -65,7 +65,7 @@ export default function Login() {
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full font-bold uppercase tracking-wide">
               Login
             </Button>
             <p className="text-xs text-center text-muted-foreground">
@@ -74,6 +74,8 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
+      <p className="mt-6 text-xs font-semibold text-accent">#CaringNotScaring</p>
+      <p className="mt-1 text-[10px] text-primary-foreground/50">© The Compliance Guys</p>
     </div>
   );
 }

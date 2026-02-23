@@ -53,21 +53,22 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               to={item.path}
               onClick={onClose}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  ? "bg-accent text-accent-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
               )}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <item.icon className={cn("h-4 w-4 shrink-0", isActive && "text-accent-foreground")} />
               <span>{item.title}</span>
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4">
-        <p className="text-xs text-sidebar-muted">DealerGuard v0.1 POC</p>
+      <div className="border-t border-sidebar-border p-4 space-y-1">
+        <p className="text-xs font-semibold text-accent">#CaringNotScaring</p>
+        <p className="text-[10px] text-sidebar-muted">DealerGuard v0.1 POC</p>
       </div>
     </div>
   );
