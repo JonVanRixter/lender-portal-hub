@@ -64,7 +64,7 @@ export interface DealerDocument {
   dealerId: string;
   category: DocCategory;
   uploadDate: string;
-  expiryDate: string;
+  expiryDate: string | null;
   status: DocStatus;
 }
 
@@ -78,9 +78,33 @@ export interface Alert {
   status: AlertStatus;
 }
 
+export type ActivityEventType =
+  | "Audit Completed"
+  | "Threshold Breach"
+  | "Document Uploaded"
+  | "Manual Re-Audit Triggered";
+
 export interface ActivityItem {
   id: string;
   timestamp: string;
+  dealerId: string;
   dealerName: string;
-  eventType: "Audit completed" | "Threshold breach" | "Document uploaded" | "Re-audit triggered";
+  eventType: ActivityEventType;
+  detail: string;
+  user: string;
+}
+
+export type DndEntityType = "Dealer" | "Director";
+export type DndReason = "Fraudulent activity" | "Failed compliance checks" | "Non-payment" | "Other";
+
+export interface DoNotDealEntry {
+  id: string;
+  entityName: string;
+  entityType: DndEntityType;
+  companiesHouseNumber: string | null;
+  reason: DndReason;
+  notes: string;
+  dateAdded: string;
+  addedBy: string;
+  failedChecks: string[];
 }
