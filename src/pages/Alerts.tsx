@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { useAlerts } from "@/contexts/AlertsContext";
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from "@/types";
@@ -33,10 +33,17 @@ const PAGE_SIZE = 8;
 
 export default function AlertsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { alerts, acknowledge, getDealerName } = useAlerts();
-  const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">(() => {
+    const s = searchParams.get("status");
+    return s === "Pending" || s === "Acknowledged" ? s : "all";
+  });
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | "all">("all");
-  const [typeFilter, setTypeFilter] = useState<AlertType | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<AlertType | "all">(() => {
+    const t = searchParams.get("type");
+    return t === "Threshold Breach" || t === "Document Expiry" || t === "Manual Review Required" ? t : "all";
+  });
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
