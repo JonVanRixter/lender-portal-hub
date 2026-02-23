@@ -68,9 +68,18 @@ export default function Login() {
             <Button type="submit" className="w-full font-bold uppercase tracking-wide">
               Login
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Demo: test@lender.com / Password123
-            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full font-bold uppercase tracking-wide"
+              onClick={() => {
+                if (login("test@lender.com", "Password123")) {
+                  navigate("/dashboard", { replace: true });
+                }
+              }}
+            >
+              Demo Login
+            </Button>
           </form>
         </CardContent>
       </Card>
