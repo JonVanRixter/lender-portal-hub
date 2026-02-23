@@ -1,10 +1,11 @@
 import { useParams, useSearchParams } from "react-router-dom";
-import { dealers } from "@/data/mockData";
+import { useDealers } from "@/contexts/DealersContext";
 import { DealerList } from "@/components/dealers/DealerList";
 import { DealerDetail } from "@/components/dealers/DealerDetail";
 
 export default function Dealers() {
   const { id } = useParams();
+  const { dealers } = useDealers();
 
   if (id) {
     const dealer = dealers.find((d) => d.id === id);

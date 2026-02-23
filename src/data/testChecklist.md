@@ -112,3 +112,31 @@
 - [ ] Header notification bell visible on all pages
 - [ ] User profile dropdown shows name and logout option on all pages
 - [ ] Mobile: sidebar collapses to hamburger at <768px breakpoint
+
+## RE-AUDIT WORKFLOW
+- [ ] "Update Audit" button visible on Dealer Detail for Admin/Risk Manager
+- [ ] "Update Audit" button disabled with tooltip for Viewer role
+- [ ] Clicking "Update Audit" opens Stage 1 modal with all 8 sections pre-populated
+- [ ] Changing a section score shows "Changed" tag on that row
+- [ ] "Recalculate Score" button advances to Stage 2
+- [ ] Stage 2 shows correct old vs new score comparison
+- [ ] If score improves from Amber → Green, shows ✅ message, no breach alert
+- [ ] If score worsens from Green → Amber, shows ⚠️ warning message
+- [ ] If score worsens from Amber → Red, shows ⚠️ warning message
+- [ ] "Back — Edit Sections" returns to Stage 1 with all edits intact
+- [ ] "Confirm & Save" updates dealer score on Dealer Detail page immediately
+- [ ] "Confirm & Save" appends new entry to Audit History timeline
+- [ ] "Confirm & Save" on worsening RAG → new Threshold Breach alert at top of /alerts
+- [ ] Bell badge increments by 1 after breach alert generated
+- [ ] Activity feed on Dashboard shows new audit event at top
+- [ ] Green/Amber/Neutral toast shown correctly after confirm
+
+## THRESHOLD BREACH ALERT — RE-RUN CTA
+- [ ] Threshold Breach alerts on /alerts show "Re-run Audit" button
+- [ ] "Re-run Audit" on alert → navigates to correct /dealers/:id
+- [ ] Re-Audit Modal auto-opens on that dealer page
+- [ ] Modal banner shows previous score and RAG status
+- [ ] Dealer Detail shows warning banner when active Threshold Breach exists for that dealer
+- [ ] Banner "Acknowledge Alert" → removes banner, updates alert status
+- [ ] Banner "Re-run Audit Now" → opens modal with breach context
+- [ ] After re-run, if score recovers → RAG badge updates, banner disappears

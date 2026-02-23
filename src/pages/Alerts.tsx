@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { useAlerts } from "@/contexts/AlertsContext";
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ const STATUSES: AlertStatus[] = ["Pending", "Acknowledged"];
 const PAGE_SIZE = 8;
 
 export default function AlertsPage() {
+  const navigate = useNavigate();
   const { alerts, acknowledge, getDealerName } = useAlerts();
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("all");
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | "all">("all");
@@ -169,19 +171,33 @@ export default function AlertsPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    {alert.status === "Pending" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1 text-xs"
-                        onClick={() => setAckAlert(alert)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Acknowledge
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {alert.status === "Pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs"
+                          onClick={() => setAckAlert(alert)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Acknowledge
+                        </Button>
+                      )}
+                      {alert.type === "Threshold Breach" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-[#3d1468] hover:text-[#3d1468]/80"
+                          onClick={() => navigate(`/dealers/${alert.dealerId}?reaudit=true`)}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Re-run Audit
+                        </Button>
+                      )}
+                      {alert.status !== "Pending" && alert.type !== "Threshold Breach" && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
