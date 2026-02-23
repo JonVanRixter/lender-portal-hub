@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
-import { initialAlerts, dealers } from "@/data/mockData";
+import { initialAlerts } from "@/data/mockData";
+import { useDealers } from "./DealersContext";
 import type { Alert } from "@/types";
-
-const dealerMap = new Map(dealers.map((d) => [d.id, d.name]));
 
 interface AlertsContextType {
   alerts: Alert[];
   pendingCount: number;
   acknowledge: (alertId: string) => void;
+  addAlert: (alert: Alert) => void;
   getDealerName: (dealerId: string) => string;
 }
 
@@ -15,6 +15,12 @@ const AlertsContext = createContext<AlertsContextType | null>(null);
 
 export function AlertsProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
+  const { dealers } = useDealers();
+
+  const dealerMap = useMemo(
+    () => new Map(dealers.map((d) => [d.id, d.name])),
+    [dealers]
+  );
 
   const pendingCount = useMemo(
     () => alerts.filter((a) => a.status === "Pending").length,
@@ -27,13 +33,17 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const addAlert = useCallback((alert: Alert) => {
+    setAlerts((prev) => [alert, ...prev]);
+  }, []);
+
   const getDealerName = useCallback(
     (dealerId: string) => dealerMap.get(dealerId) ?? "Unknown",
-    []
+    [dealerMap]
   );
 
   return (
-    <AlertsContext.Provider value={{ alerts, pendingCount, acknowledge, getDealerName }}>
+    <AlertsContext.Provider value={{ alerts, pendingCount, acknowledge, addAlert, getDealerName }}>
       {children}
     </AlertsContext.Provider>
   );

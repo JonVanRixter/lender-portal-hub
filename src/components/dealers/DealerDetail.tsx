@@ -1,9 +1,12 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Mail, Phone, Globe, MapPin, Building2, AlertCircle, Clock, CheckCircle2, Users, UserCheck } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Mail, Phone, Globe, MapPin, Building2, AlertCircle, Clock, CheckCircle2, Users, UserCheck, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useAlerts } from "@/contexts/AlertsContext";
+import { ReAuditModal } from "./ReAuditModal";
 import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange } from "@/types";
 
 const RAG_BADGE: Record<RagStatus, string> = {
@@ -38,6 +41,37 @@ const CHANGE_ICON: Record<AuditChange, React.ReactNode> = {
 
 export function DealerDetail({ dealer }: { dealer: Dealer }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { alerts, acknowledge } = useAlerts();
+  const [reAuditOpen, setReAuditOpen] = useState(() => searchParams.get("reaudit") === "true");
+
+  // Active threshold breach for this dealer
+  const activeBreachAlert = useMemo(
+    () => alerts.find((a) => a.dealerId === dealer.id && a.type === "Threshold Breach" && a.status === "Pending"),
+    [alerts, dealer.id]
+  );
+
+  // Extract previous score from breach alert message for context
+  const breachContext = useMemo(() => {
+    if (!activeBreachAlert) return null;
+    // Try to parse "from Green (88) to Amber (66)" pattern
+    const match = activeBreachAlert.message.match(/from (\w+) \((\d+)\)/);
+    if (match) return { previousScore: Number(match[2]), previousRag: match[1] as RagStatus };
+    return null;
+  }, [activeBreachAlert]);
+
+  const handleOpenReAudit = () => {
+    setReAuditOpen(true);
+  };
+
+  const handleCloseReAudit = () => {
+    setReAuditOpen(false);
+    // Remove reaudit param
+    if (searchParams.has("reaudit")) {
+      searchParams.delete("reaudit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -57,13 +91,39 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">Trading as: {dealer.tradingName}</p>
           </div>
-          {dealer.cssStatus && (
-            <Badge variant={dealer.cssStatus === "Reward" ? "default" : "secondary"} className="text-xs uppercase tracking-wide">
-              CSS: {dealer.cssStatus}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {dealer.cssStatus && (
+              <Badge variant={dealer.cssStatus === "Reward" ? "default" : "secondary"} className="text-xs uppercase tracking-wide">
+                CSS: {dealer.cssStatus}
+              </Badge>
+            )}
+            <Button onClick={handleOpenReAudit} className="gap-1.5 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white">
+              <RefreshCw className="h-4 w-4" /> Update Audit
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Threshold Breach Banner */}
+      {activeBreachAlert && (
+        <div className="rounded-md border border-rag-red/30 bg-rag-red/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-rag-red mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Active threshold breach alert for this dealer.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{activeBreachAlert.message}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => acknowledge(activeBreachAlert.id)}>
+              Acknowledge Alert
+            </Button>
+            <Button size="sm" className="h-8 text-xs gap-1 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white" onClick={handleOpenReAudit}>
+              <RefreshCw className="h-3.5 w-3.5" /> Re-run Audit Now
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Score Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -270,6 +330,14 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Re-Audit Modal */}
+      <ReAuditModal
+        open={reAuditOpen}
+        onClose={handleCloseReAudit}
+        dealer={dealer}
+        breachContext={breachContext}
+      />
     </div>
   );
 }
