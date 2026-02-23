@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AlertsProvider } from "@/contexts/AlertsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "./pages/Login";
@@ -24,29 +25,31 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dealers" element={<Dealers />} />
-              <Route path="/dealers/:id" element={<Dealers />} />
-              <Route path="/documents" element={<Documents />} />
-              <Route path="/alerts" element={<Alerts />} />
-              <Route path="/do-not-deal" element={<DoNotDeal />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AlertsProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dealers" element={<Dealers />} />
+                <Route path="/dealers/:id" element={<Dealers />} />
+                <Route path="/documents" element={<Documents />} />
+                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/do-not-deal" element={<DoNotDeal />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AlertsProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

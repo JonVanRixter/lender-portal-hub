@@ -1,4 +1,4 @@
-import type { Dealer, ActivityItem, DealerDocument } from "@/types";
+import type { Dealer, ActivityItem, DealerDocument, Alert } from "@/types";
 
 export const dealers: Dealer[] = [
   { id: "d1", name: "AutoMax Motors", tradingName: "AutoMax", overallScore: 92, ragStatus: "Green", lastAuditDate: "2026-01-15T10:00:00Z", cssScore: 88 },
@@ -34,6 +34,24 @@ export const documents: DealerDocument[] = [
   { id: "doc18", name: "Data Protection Policy", dealerId: "d9", category: "Other", uploadDate: "2025-06-20T10:00:00Z", expiryDate: "2026-06-20T10:00:00Z", status: "Valid" },
   { id: "doc19", name: "TCF Training Certificate", dealerId: "d10", category: "Training", uploadDate: "2026-02-10T09:00:00Z", expiryDate: "2027-02-10T09:00:00Z", status: "Valid" },
   { id: "doc20", name: "DBS Check - S. Green", dealerId: "d10", category: "DBS", uploadDate: "2026-01-28T08:00:00Z", expiryDate: "2027-01-28T08:00:00Z", status: "Valid" }
+];
+
+export const initialAlerts: Alert[] = [
+  { id: "al1", type: "Threshold Breach", dealerId: "d9", severity: "High", message: "Overall score dropped below 20 – immediate review required", date: "2026-02-23T08:30:00Z", status: "Pending" },
+  { id: "al2", type: "Document Expiry", dealerId: "d3", severity: "High", message: "Anti-Money Laundering Training certificate has expired", date: "2026-02-22T17:00:00Z", status: "Pending" },
+  { id: "al3", type: "Threshold Breach", dealerId: "d7", severity: "High", message: "CSS score critically low at 18 – escalation needed", date: "2026-02-22T14:20:00Z", status: "Pending" },
+  { id: "al4", type: "Document Expiry", dealerId: "d4", severity: "Medium", message: "Motor Trade Insurance expiring within 60 days", date: "2026-02-22T10:00:00Z", status: "Pending" },
+  { id: "al5", type: "Manual Review Required", dealerId: "d4", severity: "High", message: "Dealer flagged for manual audit – multiple expired documents", date: "2026-02-21T16:00:00Z", status: "Pending" },
+  { id: "al6", type: "Threshold Breach", dealerId: "d6", severity: "Medium", message: "Overall score dropped below 50 – monitoring advised", date: "2026-02-21T11:30:00Z", status: "Pending" },
+  { id: "al7", type: "Document Expiry", dealerId: "d7", severity: "Medium", message: "DBS Check for R. Wilson expiring within 30 days", date: "2026-02-20T15:45:00Z", status: "Pending" },
+  { id: "al8", type: "Manual Review Required", dealerId: "d9", severity: "High", message: "Dealer under investigation – pending compliance review", date: "2026-02-20T09:00:00Z", status: "Pending" },
+  { id: "al9", type: "Document Expiry", dealerId: "d6", severity: "Low", message: "Consumer Complaints Q3 report has expired – replacement needed", date: "2026-02-19T14:00:00Z", status: "Acknowledged" },
+  { id: "al10", type: "Threshold Breach", dealerId: "d4", severity: "Medium", message: "Overall score trending downward – 3 consecutive declines", date: "2026-02-19T10:30:00Z", status: "Acknowledged" },
+  { id: "al11", type: "Manual Review Required", dealerId: "d3", severity: "Low", message: "Routine quarterly review due for DriveRight Dealers", date: "2026-02-18T16:00:00Z", status: "Acknowledged" },
+  { id: "al12", type: "Document Expiry", dealerId: "d8", severity: "Medium", message: "Complaints Register Q1 expiring in May – plan renewal", date: "2026-02-18T11:00:00Z", status: "Pending" },
+  { id: "al13", type: "Threshold Breach", dealerId: "d9", severity: "High", message: "CSS score at 12 – lowest in portfolio", date: "2026-02-17T09:30:00Z", status: "Acknowledged" },
+  { id: "al14", type: "Manual Review Required", dealerId: "d7", severity: "Medium", message: "Multiple compliance flags – consolidated review recommended", date: "2026-02-16T14:15:00Z", status: "Pending" },
+  { id: "al15", type: "Document Expiry", dealerId: "d2", severity: "Low", message: "Complaints Register Q4 approaching expiry in March", date: "2026-02-15T10:00:00Z", status: "Acknowledged" }
 ];
 
 export const activityFeed: ActivityItem[] = [
