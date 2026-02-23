@@ -547,6 +547,27 @@ export default function Reports() {
 
   return (
     <div className="space-y-8">
+      {/* Section B — Individual Dealer Report */}
+      <div>
+        <h2 className="text-xl font-bold text-foreground mb-3">Individual Dealer Report</h2>
+        <Select value={selectedDealerId ?? ""} onValueChange={(v) => setSelectedDealerId(v || null)}>
+          <SelectTrigger className="w-full sm:w-80 h-9">
+            <SelectValue placeholder="Select a dealer to generate report" />
+          </SelectTrigger>
+          <SelectContent>
+            {dealers.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.tradingName} — {d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedDealer && (
+          <div className="mt-4">
+            <DealerReport dealer={selectedDealer} />
+          </div>
+        )}
+      </div>
+
       {/* Section A — Portfolio Summary */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -568,27 +589,6 @@ export default function Reports() {
           <DocExpirySummaryCard />
           <AlertsSummaryCard />
         </div>
-      </div>
-
-      {/* Section B — Individual Dealer Report */}
-      <div>
-        <h2 className="text-xl font-bold text-foreground mb-3">Individual Dealer Report</h2>
-        <Select value={selectedDealerId ?? ""} onValueChange={(v) => setSelectedDealerId(v || null)}>
-          <SelectTrigger className="w-full sm:w-80 h-9">
-            <SelectValue placeholder="Select a dealer to generate report" />
-          </SelectTrigger>
-          <SelectContent>
-            {dealers.map((d) => (
-              <SelectItem key={d.id} value={d.id}>{d.tradingName} — {d.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {selectedDealer && (
-          <div className="mt-4">
-            <DealerReport dealer={selectedDealer} />
-          </div>
-        )}
       </div>
     </div>
   );
