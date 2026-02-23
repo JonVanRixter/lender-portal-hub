@@ -34,6 +34,14 @@ export const dealers: Dealer[] = [
       { id: "ka001", description: "Renew DBS certificates for 3 members of staff due April 2026", status: "Open", dueDate: "2026-04-01", assignedTo: "Dealer Principal" },
       { id: "ka002", description: "Update website T&Cs to reflect new FCA consumer duty language", status: "In Progress", dueDate: "2026-03-01", assignedTo: "Marketing Manager" },
     ],
+    directors: [
+      { name: "James Hargreaves", role: "Managing Director", appointedDate: "2015-03-12" },
+      { name: "Sarah Hargreaves", role: "Finance Director", appointedDate: "2015-03-12" },
+    ],
+    shareholders: [
+      { name: "James Hargreaves", shareholding: "60%" },
+      { name: "Sarah Hargreaves", shareholding: "40%" },
+    ],
     notes: "Strong performer across all sections. DBS renewal cycle due Q2 2026 — dealer has been flagged in advance. No concerns at this stage.",
   },
   {
@@ -69,6 +77,14 @@ export const dealers: Dealer[] = [
       { id: "ka003", description: "Review complaints handling process — 2 cases exceeded 8-week SLA", status: "Open", dueDate: "2026-02-28", assignedTo: "Compliance Officer" },
       { id: "ka004", description: "Complete training module 3 for new F&I staff member", status: "In Progress", dueDate: "2026-03-15", assignedTo: "F&I Manager" },
     ],
+    directors: [
+      { name: "Rajesh Patel", role: "Managing Director", appointedDate: "2017-06-01" },
+      { name: "Priya Patel", role: "Company Secretary", appointedDate: "2017-06-01" },
+    ],
+    shareholders: [
+      { name: "Rajesh Patel", shareholding: "75%" },
+      { name: "Priya Patel", shareholding: "25%" },
+    ],
     notes: "Good overall compliance position. Complaints handling flagged as amber — dealer has acknowledged and is reviewing internal process.",
   },
   {
@@ -102,6 +118,14 @@ export const dealers: Dealer[] = [
     keyActions: [
       { id: "ka005", description: "Monitor financial performance and request updated credit position Q2 2026", status: "Open", dueDate: "2026-05-01", assignedTo: "Risk Manager" },
     ],
+    directors: [
+      { name: "Philip Briggs", role: "Managing Director", appointedDate: "2012-09-15" },
+      { name: "Helen Briggs", role: "Director", appointedDate: "2014-01-20" },
+    ],
+    shareholders: [
+      { name: "Philip Briggs", shareholding: "50%" },
+      { name: "Helen Briggs", shareholding: "50%" },
+    ],
     notes: "Improved from Amber to Green since last audit. Financial risk section remains borderline — worth monitoring closely.",
   },
   {
@@ -134,6 +158,14 @@ export const dealers: Dealer[] = [
       { id: "ah004-1", date: "2025-08-02", initiatedBy: "Mark Davies", overallScore: 85, ragStatus: "Green", change: "neutral" },
     ],
     keyActions: [],
+    directors: [
+      { name: "Charles Rees", role: "Managing Director", appointedDate: "2018-04-10" },
+      { name: "Angela Whitmore", role: "Operations Director", appointedDate: "2019-08-01" },
+    ],
+    shareholders: [
+      { name: "Charles Rees", shareholding: "80%" },
+      { name: "Angela Whitmore", shareholding: "20%" },
+    ],
     notes: "Exemplary compliance record. Flagship dealer for Consumer Duty best practice. Strong candidate for lender reward programme.",
   },
   {
@@ -171,6 +203,12 @@ export const dealers: Dealer[] = [
       { id: "ka008", description: "Update training records for 2 F&I staff overdue for renewal", status: "Open", dueDate: "2026-03-01", assignedTo: "F&I Manager" },
       { id: "ka009", description: "Update APR representative example prominence on website", status: "Open", dueDate: "2026-02-25", assignedTo: "Marketing Manager" },
     ],
+    directors: [
+      { name: "Mark Hussain", role: "Managing Director", appointedDate: "2010-11-05" },
+    ],
+    shareholders: [
+      { name: "Mark Hussain", shareholding: "100%" },
+    ],
     notes: "Dropped from Green to Amber since last audit. Multiple amber flags across sections — dealer has been notified. Close monitoring required over next 90 days.",
   },
   {
@@ -205,6 +243,14 @@ export const dealers: Dealer[] = [
       { id: "ka010", description: "Upload missing training certificates for 3 staff", status: "Open", dueDate: "2026-02-25", assignedTo: "Dealer Principal" },
       { id: "ka011", description: "Add risk warnings to all finance-related website pages", status: "Open", dueDate: "2026-02-28", assignedTo: "Marketing Manager" },
       { id: "ka012", description: "Renew 3 DBS certificates ahead of 30-day expiry", status: "In Progress", dueDate: "2026-03-01", assignedTo: "HR Manager" },
+    ],
+    directors: [
+      { name: "Brian Ogden", role: "Managing Director", appointedDate: "2013-05-20" },
+      { name: "William Shaw", role: "Director", appointedDate: "2016-02-14" },
+    ],
+    shareholders: [
+      { name: "Brian Ogden", shareholding: "65%" },
+      { name: "William Shaw", shareholding: "35%" },
     ],
     notes: "Persistently amber across two audits. Score declining. Actions must be completed within 30 days or escalation to Red will be considered.",
   },
@@ -241,6 +287,16 @@ export const dealers: Dealer[] = [
       { id: "ka014", description: "Implement formal complaints log and response tracking immediately", status: "Open", dueDate: "2026-02-25", assignedTo: "Compliance Officer" },
       { id: "ka015", description: "Initiate DBS renewal for 4 expired staff certificates", status: "Open", dueDate: "2026-02-28", assignedTo: "HR Manager" },
     ],
+    directors: [
+      { name: "Frank Malone", role: "Managing Director", appointedDate: "2008-07-01" },
+      { name: "Christine Peel", role: "Finance Director", appointedDate: "2010-03-15" },
+      { name: "Thomas Rowan", role: "Director", appointedDate: "2015-09-10" },
+    ],
+    shareholders: [
+      { name: "Frank Malone", shareholding: "45%" },
+      { name: "Christine Peel", shareholding: "30%" },
+      { name: "Thomas Rowan", shareholding: "25%" },
+    ],
     notes: "High-risk Amber. Two Red sections. Escalation to Red will apply if next audit score drops below 50. Dealer principal meeting recommended.",
   },
   {
@@ -274,6 +330,12 @@ export const dealers: Dealer[] = [
     keyActions: [
       { id: "ka016", description: "Renew expired training certificate and upload evidence", status: "In Progress", dueDate: "2026-03-01", assignedTo: "F&I Manager" },
       { id: "ka017", description: "Update website disclaimer wording for consumer duty compliance", status: "Open", dueDate: "2026-03-01", assignedTo: "Marketing Manager" },
+    ],
+    directors: [
+      { name: "David Walsh", role: "Managing Director", appointedDate: "2016-01-10" },
+    ],
+    shareholders: [
+      { name: "David Walsh", shareholding: "100%" },
     ],
     notes: "Amber but improving trend. Actions are minor and manageable. Should reach Green threshold once outstanding items are closed.",
   },
@@ -309,6 +371,14 @@ export const dealers: Dealer[] = [
       { id: "ka018", description: "Draft and implement formal written complaints policy", status: "Open", dueDate: "2026-02-28", assignedTo: "Dealer Principal" },
       { id: "ka019", description: "Complete sanctions screening documentation for KYC/AML section", status: "Open", dueDate: "2026-02-20", assignedTo: "Compliance Officer" },
       { id: "ka020", description: "Ensure risk warnings are visible on mobile view of website", status: "Open", dueDate: "2026-02-25", assignedTo: "Web Developer" },
+    ],
+    directors: [
+      { name: "George Farrow", role: "Managing Director", appointedDate: "2011-04-22" },
+      { name: "Yusuf Mensah", role: "Director", appointedDate: "2014-08-01" },
+    ],
+    shareholders: [
+      { name: "George Farrow", shareholding: "55%" },
+      { name: "Yusuf Mensah", shareholding: "45%" },
     ],
     notes: "Borderline Amber/Red. Complaints Handling section failed. Immediate action required. Score at risk of dropping to Red on next audit cycle.",
   },
@@ -347,6 +417,14 @@ export const dealers: Dealer[] = [
       { id: "ka023", description: "Provide full training records and qualifications for all F&I staff", status: "Open", dueDate: "2026-02-20", assignedTo: "Dealer Principal" },
       { id: "ka024", description: "Implement complaints log and escalation procedure immediately", status: "Open", dueDate: "2026-02-15", assignedTo: "Dealer Principal" },
     ],
+    directors: [
+      { name: "Robert Stokes", role: "Managing Director", appointedDate: "2009-02-18" },
+      { name: "Nathan Voss", role: "Director", appointedDate: "2012-06-01" },
+    ],
+    shareholders: [
+      { name: "Robert Stokes", shareholding: "70%" },
+      { name: "Nathan Voss", shareholding: "30%" },
+    ],
     notes: "CRITICAL — Red rating. Consistent decline over 3 audit cycles. KYC/AML director flag under active investigation. Finance applications under review.",
   },
   {
@@ -381,6 +459,12 @@ export const dealers: Dealer[] = [
       { id: "ka025", description: "URGENT: Confirm FCA authorisation renewal status", status: "Open", dueDate: "2026-02-14", assignedTo: "TCG Compliance" },
       { id: "ka026", description: "Submit full AML policy and sanctions screening evidence", status: "Open", dueDate: "2026-02-20", assignedTo: "Dealer Principal" },
       { id: "ka027", description: "Obtain and upload DBS certificates for all staff immediately", status: "Open", dueDate: "2026-02-28", assignedTo: "Dealer Principal" },
+    ],
+    directors: [
+      { name: "Kevin Horne", role: "Managing Director", appointedDate: "2019-10-01" },
+    ],
+    shareholders: [
+      { name: "Kevin Horne", shareholding: "100%" },
     ],
     notes: "CRITICAL — FCA authorisation lapsed. Finance applications SUSPENDED. Formal escalation in progress.",
   },

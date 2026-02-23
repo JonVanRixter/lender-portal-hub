@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Mail, Phone, Globe, MapPin, Building2, AlertCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Mail, Phone, Globe, MapPin, Building2, AlertCircle, Clock, CheckCircle2, Users, UserCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,51 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Directors & Shareholders */}
+      {(dealer.directors?.length || dealer.shareholders?.length) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {dealer.directors && dealer.directors.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Directors ({dealer.directors.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {dealer.directors.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-md border border-border p-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{d.name}</p>
+                      <p className="text-xs text-muted-foreground">{d.role}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Appointed: {new Date(d.appointedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          {dealer.shareholders && dealer.shareholders.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" /> Shareholders ({dealer.shareholders.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {dealer.shareholders.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-md border border-border p-3">
+                    <p className="text-sm font-medium text-foreground">{s.name}</p>
+                    <Badge variant="secondary" className="text-xs">{s.shareholding}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Audit Sections */}
