@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { dealers, documents, initialAlerts } from "@/data/mockData";
 import type { Dealer, RagStatus } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,8 +132,10 @@ function SectionHeatmapCard() {
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-3 py-2 text-left font-semibold text-muted-foreground sticky left-0 bg-muted/50 z-10">Section</th>
                   {dealers.map((d) => (
-                    <th key={d.id} className="px-2 py-2 text-center font-medium text-muted-foreground whitespace-nowrap">
-                      {d.tradingName.length > 12 ? d.tradingName.slice(0, 10) + "…" : d.tradingName}
+                    <th key={d.id} className="px-2 py-2 text-center font-medium whitespace-nowrap">
+                      <button onClick={() => window.location.href = `/dealers/${d.id}`} className="text-primary hover:underline cursor-pointer text-xs">
+                        {d.tradingName.length > 12 ? d.tradingName.slice(0, 10) + "…" : d.tradingName}
+                      </button>
                     </th>
                   ))}
                 </tr>
@@ -144,11 +147,13 @@ function SectionHeatmapCard() {
                     {dealers.map((d) => {
                       const sec = d.sections?.find((s) => s.name === section);
                       const rag = sec?.ragStatus ?? "Green";
-                      return (
-                        <td key={d.id} className="px-2 py-2 text-center">
-                          <span className={`inline-block h-3 w-3 rounded-full`} style={{ backgroundColor: RAG_COLORS[rag] }} title={`${rag} (${sec?.score ?? "—"})`} />
-                        </td>
-                      );
+                        return (
+                          <td key={d.id} className="px-2 py-2 text-center">
+                            <button onClick={() => window.location.href = `/dealers/${d.id}`} className="cursor-pointer" title={`${d.tradingName} — ${section}: ${rag} (${sec?.score ?? "—"})`}>
+                              <span className={`inline-block h-3 w-3 rounded-full`} style={{ backgroundColor: RAG_COLORS[rag] }} />
+                            </button>
+                          </td>
+                        );
                     })}
                   </tr>
                 ))}
@@ -182,8 +187,8 @@ function CssSummaryCard() {
             {sorted.map((d) => {
               const status = d.cssScore >= 75 ? "Reward" : "Oversight";
               return (
-                <tr key={d.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 font-medium text-foreground">{d.tradingName}</td>
+                <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => window.location.href = `/dealers/${d.id}`}>
+                  <td className="px-3 py-2 font-medium text-primary hover:underline">{d.tradingName}</td>
                   <td className="px-3 py-2 text-muted-foreground">{d.cssScore}</td>
                   <td className="px-3 py-2">
                     <span className={`inline-flex items-center gap-1 text-xs font-semibold ${status === "Reward" ? "text-rag-green" : "text-rag-amber"}`}>
@@ -206,6 +211,7 @@ function OpenActionsCard() {
       .map((d) => {
         const actions = d.keyActions ?? [];
         return {
+          id: d.id,
           name: d.tradingName,
           open: actions.filter((a) => a.status === "Open").length,
           inProgress: actions.filter((a) => a.status === "In Progress").length,
@@ -233,11 +239,11 @@ function OpenActionsCard() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.name} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 font-medium text-foreground">{r.name}</td>
-                <td className="px-3 py-2 text-center text-muted-foreground">{r.open}</td>
-                <td className="px-3 py-2 text-center text-muted-foreground">{r.inProgress}</td>
-                <td className="px-3 py-2 text-center text-muted-foreground">{r.completed}</td>
+              <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => window.location.href = `/dealers/${r.id}`}>
+                <td className="px-3 py-2 font-medium text-primary hover:underline">{r.name}</td>
+                <td className="px-3 py-2 text-center text-muted-foreground">{r.open || "—"}</td>
+                <td className="px-3 py-2 text-center text-muted-foreground">{r.inProgress || "—"}</td>
+                <td className="px-3 py-2 text-center text-muted-foreground">{r.completed || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -272,7 +278,7 @@ function DocExpirySummaryCard() {
                 status === "Expiring Soon" ? "bg-rag-amber/15 text-rag-amber" :
                 "bg-rag-red/15 text-rag-red"
               }`}>{status}</span>
-              <span className="text-lg font-bold text-foreground">{counts[status]}</span>
+              <button onClick={() => window.location.href = `/documents`} className="text-lg font-bold text-primary hover:underline cursor-pointer">{counts[status]}</button>
             </div>
           ))}
         </div>
@@ -310,8 +316,8 @@ function AlertsSummaryCard() {
           </thead>
           <tbody>
             {summary.map((s) => (
-              <tr key={s.type} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 font-medium text-foreground">{s.type}</td>
+              <tr key={s.type} className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => window.location.href = `/alerts`}>
+                <td className="px-3 py-2 font-medium text-primary hover:underline">{s.type}</td>
                 <td className="px-3 py-2 text-center">
                   <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-rag-amber/15 text-rag-amber">{s.pending}</span>
                 </td>
