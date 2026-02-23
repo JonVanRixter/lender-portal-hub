@@ -301,6 +301,7 @@ function DocExpirySummaryCard() {
 }
 
 function AlertsSummaryCard() {
+  const navigate = useNavigate();
   const summary = useMemo(() => {
     const types = ["Threshold Breach", "Document Expiry", "Manual Review Required"] as const;
     return types.map((type) => {
@@ -329,12 +330,24 @@ function AlertsSummaryCard() {
           </thead>
           <tbody>
             {summary.map((s) => (
-              <tr key={s.type} className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => window.location.href = `/alerts`}>
-                <td className="px-3 py-2 font-medium text-primary hover:underline">{s.type}</td>
+              <tr key={s.type} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 font-medium text-foreground">{s.type}</td>
                 <td className="px-3 py-2 text-center">
-                  <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-rag-amber/15 text-rag-amber">{s.pending}</span>
+                  <button
+                    onClick={() => navigate(`/alerts?type=${encodeURIComponent(s.type)}&status=Pending`)}
+                    className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-rag-amber/15 text-rag-amber hover:underline cursor-pointer"
+                  >
+                    {s.pending}
+                  </button>
                 </td>
-                <td className="px-3 py-2 text-center text-muted-foreground">{s.acknowledged}</td>
+                <td className="px-3 py-2 text-center">
+                  <button
+                    onClick={() => navigate(`/alerts?type=${encodeURIComponent(s.type)}&status=Acknowledged`)}
+                    className="text-muted-foreground hover:underline cursor-pointer text-sm"
+                  >
+                    {s.acknowledged}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
