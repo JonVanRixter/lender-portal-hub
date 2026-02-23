@@ -1,5 +1,8 @@
 export type RagStatus = "Green" | "Amber" | "Red";
 
+export type DocCategory = "DBS" | "Training" | "Complaints" | "Other";
+export type DocStatus = "Valid" | "Expiring Soon" | "Expired";
+
 export interface Dealer {
   id: string;
   name: string;
@@ -10,14 +13,14 @@ export interface Dealer {
   cssScore: number;
 }
 
-export interface Document {
+export interface DealerDocument {
   id: string;
   name: string;
   dealerId: string;
-  category: string;
+  category: DocCategory;
   uploadDate: string;
   expiryDate: string;
-  status: string;
+  status: DocStatus;
 }
 
 export interface Alert {
