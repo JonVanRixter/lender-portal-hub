@@ -7,14 +7,55 @@ export type AlertType = "Threshold Breach" | "Document Expiry" | "Manual Review 
 export type AlertSeverity = "High" | "Medium" | "Low";
 export type AlertStatus = "Pending" | "Acknowledged";
 
+export type CssStatus = "Reward" | "Oversight";
+export type SectionResult = "Pass" | "Pending" | "Fail";
+export type ActionStatus = "Open" | "In Progress" | "Completed";
+export type AuditChange = "up" | "down" | "neutral";
+
+export interface DealerSection {
+  id: string;
+  name: string;
+  score: number;
+  ragStatus: RagStatus;
+  result: SectionResult;
+  notes: string;
+}
+
+export interface AuditHistoryEntry {
+  id: string;
+  date: string;
+  initiatedBy: string;
+  overallScore: number;
+  ragStatus: RagStatus;
+  change: AuditChange;
+}
+
+export interface KeyAction {
+  id: string;
+  description: string;
+  status: ActionStatus;
+  dueDate: string;
+  assignedTo: string;
+}
+
 export interface Dealer {
   id: string;
   name: string;
   tradingName: string;
+  companiesHouseNumber?: string;
+  website?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
   overallScore: number;
   ragStatus: RagStatus;
   lastAuditDate: string;
   cssScore: number;
+  cssStatus?: CssStatus;
+  sections?: DealerSection[];
+  auditHistory?: AuditHistoryEntry[];
+  keyActions?: KeyAction[];
+  notes?: string;
 }
 
 export interface DealerDocument {
