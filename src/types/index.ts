@@ -1,4 +1,4 @@
-export type RagStatus = "green" | "amber" | "red";
+export type RagStatus = "Green" | "Amber" | "Red";
 
 export interface Dealer {
   id: string;
@@ -28,4 +28,11 @@ export interface Alert {
   message: string;
   date: string;
   status: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  timestamp: string;
+  dealerName: string;
+  eventType: "Audit completed" | "Threshold breach" | "Document uploaded" | "Re-audit triggered";
 }
