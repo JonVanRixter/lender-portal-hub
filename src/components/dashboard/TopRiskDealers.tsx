@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { Dealer, RagStatus } from "@/types";
 
 const RAG_BADGE: Record<RagStatus, string> = {
@@ -7,6 +8,7 @@ const RAG_BADGE: Record<RagStatus, string> = {
 };
 
 export function TopRiskDealers({ dealers }: { dealers: Dealer[] }) {
+  const navigate = useNavigate();
   const top5 = [...dealers].sort((a, b) => a.overallScore - b.overallScore).slice(0, 5);
 
   return (
@@ -16,7 +18,8 @@ export function TopRiskDealers({ dealers }: { dealers: Dealer[] }) {
         {top5.map((d, i) => (
           <div
             key={d.id}
-            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/40 transition-colors"
+            onClick={() => navigate(`/dealers/${d.id}`)}
+            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/40 transition-colors cursor-pointer"
           >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
               {i + 1}
