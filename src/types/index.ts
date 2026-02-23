@@ -38,6 +38,17 @@ export interface KeyAction {
   assignedTo: string;
 }
 
+export interface DealerDirector {
+  name: string;
+  role: string;
+  appointedDate: string;
+}
+
+export interface DealerShareholder {
+  name: string;
+  shareholding: string;
+}
+
 export interface Dealer {
   id: string;
   name: string;
@@ -55,6 +66,8 @@ export interface Dealer {
   sections?: DealerSection[];
   auditHistory?: AuditHistoryEntry[];
   keyActions?: KeyAction[];
+  directors?: DealerDirector[];
+  shareholders?: DealerShareholder[];
   notes?: string;
 }
 
