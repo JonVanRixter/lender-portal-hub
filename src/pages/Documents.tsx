@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { dealers, documents as initialDocuments } from "@/data/mockData";
 import type { DealerDocument, DocCategory, DocStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -160,11 +160,14 @@ export default function Documents() {
               <th className="px-3 py-2.5 text-left">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
               </th>
+              <th className="px-3 py-2.5 text-left">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {paginated.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No documents found.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">No documents found.</td></tr>
             ) : (
               paginated.map((doc) => (
                 <tr key={doc.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
@@ -177,6 +180,12 @@ export default function Documents() {
                     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_PILL[doc.status]}`}>
                       {doc.status}
                     </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-primary hover:text-primary/80">
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </Button>
                   </td>
                 </tr>
               ))
