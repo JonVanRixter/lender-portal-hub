@@ -83,7 +83,7 @@ export default function NewApplicationPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers")}>
+      <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers?tab=onboarding")}>
         <ArrowLeft className="h-4 w-4" /> Back to Onboarding
       </Button>
 
@@ -187,7 +187,7 @@ export default function NewApplicationPage() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => navigate("/dealers")}>Cancel</Button>
+            <Button variant="ghost" onClick={() => navigate("/dealers?tab=onboarding")}>Cancel</Button>
             <Button onClick={handleSave} disabled={!requiredFilled}>
               Save &amp; Begin Pre-Screening
             </Button>

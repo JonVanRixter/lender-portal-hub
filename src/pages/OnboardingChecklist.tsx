@@ -59,6 +59,14 @@ function sectionStatus(sec: { result: ChecklistSectionResult; complete: boolean 
   if (sec.result) return "🔵";
   return "⬜";
 }
+function getCreditRating(score: number | null): string {
+  if (score === null) return "";
+  if (score >= 81) return "Excellent";
+  if (score >= 61) return "Good";
+  if (score >= 41) return "Fair";
+  if (score >= 21) return "Poor";
+  return "Very Poor";
+}
 
 export default function ChecklistPage() {
   const { appId } = useParams<{ appId: string }>();
@@ -83,7 +91,7 @@ export default function ChecklistPage() {
     return (
       <div className="max-w-3xl mx-auto py-12 text-center">
         <h1 className="text-xl font-bold text-foreground">Application Not Found</h1>
-        <Button variant="ghost" className="mt-4" onClick={() => navigate("/dealers")}>Back</Button>
+        <Button variant="ghost" className="mt-4" onClick={() => navigate("/dealers?tab=onboarding")}>Back</Button>
       </div>
     );
   }
@@ -99,28 +107,26 @@ export default function ChecklistPage() {
   const handleSubmit = () => {
     updateApplicationDeep(appId!, (a) => ({ ...a, status: "pending-approval" }));
     toast({ title: "Application Submitted", description: `${app.tradingName} submitted for approval.` });
-    navigate("/dealers");
+    navigate("/dealers?tab=onboarding");
   };
 
   const handleSaveReturn = () => {
     toast({ title: "Saved", description: "Checklist progress saved." });
-    navigate("/dealers");
+    navigate("/dealers?tab=onboarding");
   };
 
-  // Credit rating auto-calc
-  const getCreditRating = (score: number | null): string => {
-    if (score === null) return "";
-    if (score >= 81) return "Excellent";
-    if (score >= 61) return "Good";
-    if (score >= 41) return "Fair";
-    if (score >= 21) return "Poor";
-    return "Very Poor";
-  };
+  const sectionNames = [
+    "Legal Status", "FCA Authorisation", "Financial Risk", "KYC & AML",
+    "DBS Compliance", "Training & Competence", "Complaints Handling", "Website & Marketing",
+  ];
+
+  const sectionKeys = ["section1","section2","section3","section4","section5","section6","section7","section8"] as const;
+  const sectionStatuses = sectionKeys.map((k) => cl[k]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers")}>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers?tab=onboarding")}>
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
         <Badge variant="outline" className="text-xs">
