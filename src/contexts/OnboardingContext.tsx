@@ -5,6 +5,36 @@ import { createEmptyApplication, createEmptyPreScreening, createEmptyChecklist }
 const STORAGE_KEY = "dg_onboarding_apps";
 const SEEDED_KEY = "dg_onboarding_seeded_v2";
 
+/* ── Automatically determine the correct pipeline stage from data completeness ── */
+function deriveStatus(app: OnboardingApplicationFull): OnboardingAppStatus {
+  // Terminal statuses are never overridden
+  if (app.status === "approved" || app.status === "rejected") return app.status;
+
+  const ps = app.preScreening;
+  const psResults = [ps.companiesHouse.result, ps.fcaRegister.result, ps.financialStanding.result, ps.sanctionsAml.result, ps.websiteTrading.result];
+  const psAllDone = psResults.every((r) => r !== null);
+  const psAllPass = psResults.every((r) => r === "Pass");
+
+  const cl = app.checklist;
+  const sections = [cl.section1, cl.section2, cl.section3, cl.section4, cl.section5, cl.section6, cl.section7, cl.section8];
+  const clAllComplete = sections.every((s) => s.complete);
+
+  // All checklist sections complete → pending-approval
+  if (psAllPass && clAllComplete) return "pending-approval";
+
+  // Pre-screening all passed → checklist
+  if (psAllPass) return "checklist";
+
+  // Any pre-screening work started → pre-screening
+  if (psResults.some((r) => r !== null)) return "pre-screening";
+
+  // Check if basic company info is filled in
+  const hasBasicInfo = app.companyName && app.companiesHouseNumber;
+  if (hasBasicInfo) return "pre-screening";
+
+  return "draft";
+}
+
 /* ── Seed data so the pipeline isn't empty on first load ── */
 function buildSeederApps(): OnboardingApplicationFull[] {
   const now = new Date().toISOString();
@@ -154,20 +184,32 @@ export function OnboardingWorkflowProvider({ children }: { children: ReactNode }
       createdAt: now,
       updatedAt: now,
     } as OnboardingApplicationFull;
+    // Auto-derive the correct pipeline stage from data completeness
+    app.status = deriveStatus(app);
     setApplications((prev) => [...prev, app]);
     return app;
   }, []);
 
   const updateApplication = useCallback((id: string, patch: Partial<OnboardingApplicationFull>) => {
     setApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a))
+      prev.map((a) => {
+        if (a.id !== id) return a;
+        const updated = { ...a, ...patch, updatedAt: new Date().toISOString() };
+        updated.status = deriveStatus(updated);
+        return updated;
+      })
     );
   }, []);
 
   const updateApplicationDeep = useCallback(
     (id: string, updater: (app: OnboardingApplicationFull) => OnboardingApplicationFull) => {
       setApplications((prev) =>
-        prev.map((a) => (a.id === id ? { ...updater(a), updatedAt: new Date().toISOString() } : a))
+        prev.map((a) => {
+          if (a.id !== id) return a;
+          const updated = { ...updater(a), updatedAt: new Date().toISOString() };
+          updated.status = deriveStatus(updated);
+          return updated;
+        })
       );
     },
     []
