@@ -187,16 +187,38 @@ function CompaniesHouseAutoCard({
 }
 
 /* ── Simulated FCA Register API lookup ── */
-function simulateFCALookup(app: OnboardingApplicationFull): OnboardingApplicationFull["preScreening"]["fcaRegister"] {
+type FCAExtended = {
+  permissions: string[];
+  approvedPersons: { name: string; role: string; effectiveDate: string }[];
+};
+
+function simulateFCALookup(app: OnboardingApplicationFull): { fca: OnboardingApplicationFull["preScreening"]["fcaRegister"]; ext: FCAExtended } {
   return {
-    fcaRefNumber: app.preScreening.fcaRegister.fcaRefNumber || "FCA-" + (app.companiesHouseNumber || "000000").slice(0, 6),
-    authorisationType: "Full Authorisation",
-    consumerCredit: "Yes",
-    insuranceDistribution: "No",
-    authorisationStatus: "Current",
-    tradingNameMatches: "Yes",
-    notes: "",
-    result: "Pass",
+    fca: {
+      fcaRefNumber: app.preScreening.fcaRegister.fcaRefNumber || "FCA-" + (app.companiesHouseNumber || "000000").slice(0, 6),
+      authorisationType: "Full Authorisation",
+      consumerCredit: "Yes",
+      insuranceDistribution: "No",
+      authorisationStatus: "Current",
+      tradingNameMatches: "Yes",
+      notes: "",
+      result: "Pass",
+    },
+    ext: {
+      permissions: [
+        "Consumer Credit Lending",
+        "Credit Broking",
+        "Debt Adjusting",
+        "Debt Counselling",
+        "Providing Credit Information Services",
+        "Providing Credit References",
+      ],
+      approvedPersons: [
+        { name: app.primaryContactName || "John Smith", role: "SMF1 – Chief Executive", effectiveDate: "2023-06-15" },
+        { name: "Emma Richards", role: "SMF16 – Compliance Oversight", effectiveDate: "2023-06-15" },
+        { name: "Mark Taylor", role: "SMF17 – Money Laundering Reporting", effectiveDate: "2024-01-10" },
+      ],
+    },
   };
 }
 
@@ -212,12 +234,14 @@ function FCAAutoCard({
   update: (updater: (ps: PreScreeningData) => PreScreeningData) => void;
 }) {
   const [status, setStatus] = useState<"idle" | "running" | "done">(fcaData.result ? "done" : "idle");
+  const [extData, setExtData] = useState<FCAExtended | null>(fcaData.result ? simulateFCALookup(app).ext : null);
 
   const runCheck = useCallback(() => {
     setStatus("running");
     setTimeout(() => {
-      const result = simulateFCALookup(app);
-      update((ps) => ({ ...ps, fcaRegister: result }));
+      const { fca, ext } = simulateFCALookup(app);
+      update((ps) => ({ ...ps, fcaRegister: fca }));
+      setExtData(ext);
       setStatus("done");
     }, 1800);
   }, [app, update]);
@@ -231,8 +255,6 @@ function FCAAutoCard({
   const fields = [
     { label: "FCA Reference", value: fcaData.fcaRefNumber },
     { label: "Authorisation Type", value: fcaData.authorisationType },
-    { label: "Consumer Credit", value: fcaData.consumerCredit || "—" },
-    { label: "Insurance Distribution", value: fcaData.insuranceDistribution || "—" },
     { label: "Authorisation Status", value: fcaData.authorisationStatus },
     { label: "Trading Name Match", value: fcaData.tradingNameMatches || "—" },
   ];
@@ -268,7 +290,7 @@ function FCAAutoCard({
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {fields.map((f) => (
                 <div key={f.label} className="space-y-1">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{f.label}</p>
@@ -276,6 +298,36 @@ function FCAAutoCard({
                 </div>
               ))}
             </div>
+
+            {/* Permissions */}
+            {extData?.permissions && extData.permissions.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current Permissions</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {extData.permissions.map((p) => (
+                    <Badge key={p} variant="outline" className="text-xs font-normal">{p}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SMF / Approved Persons */}
+            {extData?.approvedPersons && extData.approvedPersons.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">SMF / Approved Persons</p>
+                <div className="space-y-1.5">
+                  {extData.approvedPersons.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm bg-muted/40 rounded-md px-3 py-2">
+                      <div>
+                        <span className="font-medium text-foreground">{p.name}</span>
+                        <span className="text-muted-foreground ml-2">— {p.role}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Since {p.effectiveDate}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-2 border-t border-border">
               <a href="https://register.fca.org.uk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
