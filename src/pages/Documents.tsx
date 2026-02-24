@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { dealers, documents as initialDocuments } from "@/data/mockData";
 import type { DealerDocument, DocCategory, DocStatus } from "@/types";
@@ -29,7 +30,8 @@ const dealerMap = new Map(dealers.map((d) => [d.id, d.name]));
 
 export default function Documents() {
   const [docs, setDocs] = useState<DealerDocument[]>(initialDocuments);
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [catFilter, setCatFilter] = useState<DocCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<DocStatus | "all">("all");
   const [sortKey, setSortKey] = useState<SortKey>("uploadDate");

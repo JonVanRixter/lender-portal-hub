@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import type { OnboardingApplicationFull, OnboardingAppStatus } from "@/types/onboarding";
 import { createEmptyApplication, createEmptyPreScreening, createEmptyChecklist } from "@/types/onboarding";
+import { toast } from "sonner";
 
 const STORAGE_KEY = "dg_onboarding_apps";
 const SEEDED_KEY = "dg_onboarding_seeded_v2";
@@ -34,8 +35,22 @@ function deriveStatus(app: OnboardingApplicationFull): OnboardingAppStatus {
 
   return "draft";
 }
+const STAGE_LABELS: Record<OnboardingAppStatus, string> = {
+  draft: "Draft",
+  "pre-screening": "Pre-Screening",
+  checklist: "Checklist",
+  "pending-approval": "Pending Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+};
 
-/* ── Seed data so the pipeline isn't empty on first load ── */
+function notifyStageAdvance(companyName: string, from: OnboardingAppStatus, to: OnboardingAppStatus) {
+  toast.success(`${companyName} advanced to ${STAGE_LABELS[to]}`, {
+    description: `Moved from ${STAGE_LABELS[from]}`,
+  });
+}
+
+
 function buildSeederApps(): OnboardingApplicationFull[] {
   const now = new Date().toISOString();
   const base = () => ({ ...createEmptyApplication(), id: crypto.randomUUID(), createdAt: now, updatedAt: now }) as OnboardingApplicationFull;
@@ -194,8 +209,12 @@ export function OnboardingWorkflowProvider({ children }: { children: ReactNode }
     setApplications((prev) =>
       prev.map((a) => {
         if (a.id !== id) return a;
+        const oldStatus = a.status;
         const updated = { ...a, ...patch, updatedAt: new Date().toISOString() };
         updated.status = deriveStatus(updated);
+        if (updated.status !== oldStatus && oldStatus !== "approved" && oldStatus !== "rejected") {
+          notifyStageAdvance(updated.companyName || "Dealer", oldStatus, updated.status);
+        }
         return updated;
       })
     );
@@ -206,8 +225,12 @@ export function OnboardingWorkflowProvider({ children }: { children: ReactNode }
       setApplications((prev) =>
         prev.map((a) => {
           if (a.id !== id) return a;
+          const oldStatus = a.status;
           const updated = { ...updater(a), updatedAt: new Date().toISOString() };
           updated.status = deriveStatus(updated);
+          if (updated.status !== oldStatus && oldStatus !== "approved" && oldStatus !== "rejected") {
+            notifyStageAdvance(updated.companyName || "Dealer", oldStatus, updated.status);
+          }
           return updated;
         })
       );
