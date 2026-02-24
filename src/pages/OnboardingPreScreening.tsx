@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Check, X, AlertTriangle, Save, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, Check, X, AlertTriangle, Save, ShieldAlert, RefreshCw, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,121 @@ function resultLabel(r: PreScreenResult) {
   if (!r) return "";
   const icon = r === "Pass" ? "✅" : r === "Fail" ? "❌" : "⚠️";
   return `${icon} ${r}`;
+}
+
+/* ── Simulated Companies House API lookup ── */
+function simulateCHLookup(app: OnboardingApplicationFull): OnboardingApplicationFull["preScreening"]["companiesHouse"] {
+  // In MVP this would hit the real Companies House API.
+  // For the POC we simulate a realistic response based on the application data.
+  return {
+    companyStatus: "Active",
+    director1Name: app.primaryContactName || "Director on file",
+    director2Name: "",
+    pscDisclosed: "Yes",
+    addressMatches: "Yes",
+    notes: "",
+    result: "Pass",
+  };
+}
+
+function CompaniesHouseAutoCard({
+  app,
+  ch,
+  update,
+}: {
+  app: OnboardingApplicationFull;
+  ch: OnboardingApplicationFull["preScreening"]["companiesHouse"];
+  update: (updater: (ps: PreScreeningData) => PreScreeningData) => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "running" | "done">(ch.result ? "done" : "idle");
+
+  const runCheck = useCallback(() => {
+    setStatus("running");
+    // Simulate API delay
+    setTimeout(() => {
+      const result = simulateCHLookup(app);
+      update((ps) => ({ ...ps, companiesHouse: result }));
+      setStatus("done");
+    }, 1500);
+  }, [app, update]);
+
+  // Auto-run on first mount if not already done
+  useEffect(() => {
+    if (status === "idle" && !ch.result) {
+      runCheck();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fields = [
+    { label: "Company Status", value: ch.companyStatus },
+    { label: "Director 1", value: ch.director1Name },
+    { label: "Director 2", value: ch.director2Name || "—" },
+    { label: "PSC Disclosed", value: ch.pscDisclosed || "—" },
+    { label: "Address Matches", value: ch.addressMatches || "—" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            1. Companies House Verification
+            <Badge variant="secondary" className="text-[10px] font-medium ml-1">AUTOMATED</Badge>
+          </span>
+          <span className="text-xs font-normal">{resultLabel(ch.result)}</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {status === "running" && (
+          <div className="flex items-center gap-3 p-4 rounded-md bg-muted/50 border border-border">
+            <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Querying Companies House API for <strong>{app.companiesHouseNumber}</strong>…
+            </p>
+          </div>
+        )}
+
+        {status === "done" && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {fields.map((f) => (
+                <div key={f.label} className="space-y-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{f.label}</p>
+                  <p className="text-sm font-medium text-foreground">{f.value || "—"}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              {app.companiesHouseNumber && (
+                <a
+                  href={`https://find-and-update.company-information.service.gov.uk/company/${app.companiesHouseNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> View on Companies House
+                </a>
+              )}
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={runCheck}>
+                <RefreshCw className="h-3 w-3" /> Re-run Check
+              </Button>
+            </div>
+          </>
+        )}
+
+        {status === "idle" && (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <p className="text-sm text-muted-foreground">Automated check has not been run yet.</p>
+            <Button size="sm" onClick={runCheck} className="gap-1.5">
+              <Zap className="h-3.5 w-3.5" /> Run Companies House Check
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function PreScreeningPage() {
@@ -174,64 +289,8 @@ navigate("/dealers?tab=onboarding");
         </p>
       </div>
 
-      {/* Check 1 — Companies House */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>1. Companies House Verification</span>
-            <span className="text-xs font-normal">{resultLabel(ch.result)}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {app.companiesHouseNumber && (
-            <a
-              href={`https://find-and-update.company-information.service.gov.uk/company/${app.companiesHouseNumber}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              <ExternalLink className="h-3.5 w-3.5" /> View on Companies House (manual check)
-            </a>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Company Status</Label>
-              <Select value={ch.companyStatus} onValueChange={(v) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, companyStatus: v as any } }))}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {["Active", "Dormant", "In Liquidation", "Dissolved", "Other"].map((o) => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Director 1 Name</Label>
-              <Input value={ch.director1Name} onChange={(e) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, director1Name: e.target.value } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Director 2 Name (optional)</Label>
-              <Input value={ch.director2Name} onChange={(e) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, director2Name: e.target.value } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>PSC Disclosed</Label>
-              <ToggleGroup options={["Yes", "No", "Not Applicable"]} value={ch.pscDisclosed} onChange={(v) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, pscDisclosed: v as any } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Registered Address Matches</Label>
-              <ToggleGroup options={["Yes", "No"]} value={ch.addressMatches} onChange={(v) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, addressMatches: v as any } }))} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea value={ch.notes} onChange={(e) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, notes: e.target.value } }))} rows={2} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Result</Label>
-            <ResultToggle value={ch.result} onChange={(v) => update((ps) => ({ ...ps, companiesHouse: { ...ps.companiesHouse, result: v } }))} options={["Pass", "Fail", "Unable to Verify"]} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Check 1 — Companies House (Automated) */}
+      <CompaniesHouseAutoCard app={app} ch={ch} update={update} />
 
       {/* Check 2 — FCA */}
       <Card>
