@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw, ExternalLink } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { useAlerts } from "@/contexts/AlertsContext";
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -161,17 +161,19 @@ export default function AlertsPage() {
             {paginated.length === 0 ? (
               <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">No alerts found.</td></tr>
             ) : (
-              paginated.map((alert) => (
-                <tr key={alert.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+              paginated.map((alert) => {
+                const rowHref = alert.type === "Document Expiry"
+                  ? `/documents?search=${encodeURIComponent(getDealerName(alert.dealerId))}`
+                  : `/dealers/${alert.dealerId}`;
+                return (
+                <tr
+                  key={alert.id}
+                  className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors cursor-pointer"
+                  onClick={() => navigate(rowHref)}
+                >
                   <td className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">{alert.type}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <Link
-                      to={alert.type === "Document Expiry" ? `/documents?search=${encodeURIComponent(getDealerName(alert.dealerId))}` : `/dealers/${alert.dealerId}`}
-                      className="text-primary hover:underline font-medium inline-flex items-center gap-1"
-                    >
-                      {getDealerName(alert.dealerId)}
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
+                  <td className="px-3 py-2.5 whitespace-nowrap font-medium text-foreground">
+                    {getDealerName(alert.dealerId)}
                   </td>
                   <td className="px-3 py-2.5">
                     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${SEVERITY_PILL[alert.severity]}`}>
@@ -186,7 +188,7 @@ export default function AlertsPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {alert.status === "Pending" && (
                         <Button
                           variant="ghost"
@@ -215,7 +217,8 @@ export default function AlertsPage() {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
