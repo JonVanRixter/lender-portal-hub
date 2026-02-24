@@ -188,6 +188,123 @@ function CompaniesHouseAutoCard({
   );
 }
 
+/* ── Simulated FCA Register API lookup ── */
+function simulateFCALookup(app: OnboardingApplicationFull): OnboardingApplicationFull["preScreening"]["fcaRegister"] {
+  return {
+    fcaRefNumber: app.preScreening.fcaRegister.fcaRefNumber || "FCA-" + (app.companiesHouseNumber || "000000").slice(0, 6),
+    authorisationType: "Full Authorisation",
+    consumerCredit: "Yes",
+    insuranceDistribution: "No",
+    authorisationStatus: "Current",
+    tradingNameMatches: "Yes",
+    notes: "",
+    result: "Pass",
+  };
+}
+
+function FCAAutoCard({
+  app,
+  fcaData,
+  fcaBlocked,
+  update,
+}: {
+  app: OnboardingApplicationFull;
+  fcaData: OnboardingApplicationFull["preScreening"]["fcaRegister"];
+  fcaBlocked: boolean;
+  update: (updater: (ps: PreScreeningData) => PreScreeningData) => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "running" | "done">(fcaData.result ? "done" : "idle");
+
+  const runCheck = useCallback(() => {
+    setStatus("running");
+    setTimeout(() => {
+      const result = simulateFCALookup(app);
+      update((ps) => ({ ...ps, fcaRegister: result }));
+      setStatus("done");
+    }, 1800);
+  }, [app, update]);
+
+  useEffect(() => {
+    if (status === "idle" && !fcaData.result) {
+      runCheck();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fields = [
+    { label: "FCA Reference", value: fcaData.fcaRefNumber },
+    { label: "Authorisation Type", value: fcaData.authorisationType },
+    { label: "Consumer Credit", value: fcaData.consumerCredit || "—" },
+    { label: "Insurance Distribution", value: fcaData.insuranceDistribution || "—" },
+    { label: "Authorisation Status", value: fcaData.authorisationStatus },
+    { label: "Trading Name Match", value: fcaData.tradingNameMatches || "—" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            2. FCA Authorisation
+            <Badge variant="secondary" className="text-[10px] font-medium ml-1">AUTOMATED</Badge>
+          </span>
+          <span className="text-xs font-normal">{resultLabel(fcaData.result)}</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {status === "running" && (
+          <div className="flex items-center gap-3 p-4 rounded-md bg-muted/50 border border-border">
+            <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Querying FCA Register for <strong>{app.tradingName}</strong>…
+            </p>
+          </div>
+        )}
+
+        {status === "done" && (
+          <>
+            {fcaBlocked && (
+              <div className="flex items-start gap-3 rounded-md border border-destructive/50 bg-destructive/10 p-3">
+                <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive font-medium">
+                  🚫 A dealer without valid FCA authorisation cannot be onboarded. This application cannot proceed.
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {fields.map((f) => (
+                <div key={f.label} className="space-y-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{f.label}</p>
+                  <p className="text-sm font-medium text-foreground">{f.value || "—"}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <a href="https://register.fca.org.uk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                <ExternalLink className="h-3.5 w-3.5" /> View on FCA Register
+              </a>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={runCheck}>
+                <RefreshCw className="h-3 w-3" /> Re-run Check
+              </Button>
+            </div>
+          </>
+        )}
+
+        {status === "idle" && (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <p className="text-sm text-muted-foreground">Automated check has not been run yet.</p>
+            <Button size="sm" onClick={runCheck} className="gap-1.5">
+              <Zap className="h-3.5 w-3.5" /> Run FCA Check
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PreScreeningPage() {
   const { appId } = useParams<{ appId: string }>();
   const navigate = useNavigate();
@@ -292,80 +409,8 @@ navigate("/dealers?tab=onboarding");
       {/* Check 1 — Companies House (Automated) */}
       <CompaniesHouseAutoCard app={app} ch={ch} update={update} />
 
-      {/* Check 2 — FCA */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>2. FCA Authorisation</span>
-            <span className="text-xs font-normal">{resultLabel(fcaData.result)}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <a href="https://register.fca.org.uk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
-            <ExternalLink className="h-3.5 w-3.5" /> Check FCA Register (manual check)
-          </a>
-          {fcaBlocked && (
-            <div className="flex items-start gap-3 rounded-md border border-destructive/50 bg-destructive/10 p-3">
-              <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive font-medium">
-                🚫 A dealer without valid FCA authorisation cannot be onboarded. This application cannot proceed.
-              </p>
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>FCA Reference Number</Label>
-              <Input value={fcaData.fcaRefNumber} onChange={(e) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, fcaRefNumber: e.target.value } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Authorisation Type</Label>
-              <Select value={fcaData.authorisationType} onValueChange={(v) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, authorisationType: v as any } }))}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {["Full Authorisation", "Appointed Representative", "Not Authorised"].map((o) => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Consumer Credit Permission</Label>
-              <ToggleGroup options={["Yes", "No"]} value={fcaData.consumerCredit} onChange={(v) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, consumerCredit: v as any } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Insurance Distribution Permission</Label>
-              <ToggleGroup options={["Yes", "No"]} value={fcaData.insuranceDistribution} onChange={(v) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, insuranceDistribution: v as any } }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Authorisation Status</Label>
-              <Select value={fcaData.authorisationStatus} onValueChange={(v) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, authorisationStatus: v as any } }))}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {["Current", "Lapsed", "Cancelled", "Not Found"].map((o) => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Trading Name Matches FCA Register</Label>
-              <ToggleGroup options={["Yes", "No"]} value={fcaData.tradingNameMatches} onChange={(v) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, tradingNameMatches: v as any } }))} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea value={fcaData.notes} onChange={(e) => update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, notes: e.target.value } }))} rows={2} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Result</Label>
-            <ResultToggle
-              value={fcaData.result}
-              onChange={(v) => !fcaBlocked && update((ps) => ({ ...ps, fcaRegister: { ...ps.fcaRegister, result: v } }))}
-              options={["Pass", "Fail", "Unable to Verify"]}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Check 2 — FCA (Automated) */}
+      <FCAAutoCard app={app} fcaData={fcaData} fcaBlocked={fcaBlocked} update={update} />
 
       {/* Check 3 — Financial Standing */}
       <Card>
