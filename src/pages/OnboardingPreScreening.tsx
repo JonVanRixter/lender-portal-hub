@@ -129,9 +129,7 @@ function CompaniesHouseAutoCard({
       <CardHeader>
         <CardTitle className="text-base flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
             1. Companies House Verification
-            <Badge variant="secondary" className="text-[10px] font-medium ml-1">AUTOMATED</Badge>
           </span>
           <span className="text-xs font-normal">{resultLabel(ch.result)}</span>
         </CardTitle>
@@ -244,9 +242,7 @@ function FCAAutoCard({
       <CardHeader>
         <CardTitle className="text-base flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
             2. FCA Authorisation
-            <Badge variant="secondary" className="text-[10px] font-medium ml-1">AUTOMATED</Badge>
           </span>
           <span className="text-xs font-normal">{resultLabel(fcaData.result)}</span>
         </CardTitle>
