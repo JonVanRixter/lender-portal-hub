@@ -1,10 +1,19 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
+export type UserRole = "Super Admin" | "Admin" | "User";
+
+interface AuthUser {
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: { name: string; email: string } | null;
+  user: AuthUser | null;
   login: (email: string, password: string) => boolean;
   logout: () => void;
+  setRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -17,9 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem("dg_token")
   );
+  const [role, setRoleState] = useState<UserRole>(
+    () => (localStorage.getItem("dg_role") as UserRole) || "Super Admin"
+  );
 
   const isAuthenticated = !!token;
-  const user = isAuthenticated ? { name: "Test User", email: VALID_EMAIL } : null;
+  const user: AuthUser | null = isAuthenticated
+    ? { name: "Test User", email: VALID_EMAIL, role }
+    : null;
 
   const login = useCallback((email: string, password: string) => {
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
@@ -35,8 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   }, []);
 
+  const setRole = useCallback((r: UserRole) => {
+    localStorage.setItem("dg_role", r);
+    setRoleState(r);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, setRole }}>
       {children}
     </AuthContext.Provider>
   );
