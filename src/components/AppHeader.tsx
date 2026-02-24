@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, User, Menu, ArrowRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Bell, ChevronDown, LogOut, User, Menu, ArrowRight, Shield } from "lucide-react";
+import { useAuth, type UserRole } from "@/contexts/AuthContext";
 import { useAlerts } from "@/contexts/AlertsContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +8,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Popover,
@@ -15,6 +17,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { AlertSeverity } from "@/types";
+
+const ROLES: UserRole[] = ["Super Admin", "Admin", "User"];
+
+const ROLE_BADGE: Record<UserRole, string> = {
+  "Super Admin": "bg-rag-red/15 text-rag-red",
+  Admin: "bg-rag-amber/15 text-rag-amber",
+  User: "bg-rag-green/15 text-rag-green",
+};
 
 const SEVERITY_DOT: Record<AlertSeverity, string> = {
   High: "bg-rag-red",
@@ -27,7 +37,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onMenuToggle }: AppHeaderProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, setRole } = useAuth();
   const { alerts, pendingCount, getDealerName } = useAlerts();
   const navigate = useNavigate();
 
@@ -129,11 +139,29 @@ export function AppHeader({ onMenuToggle }: AppHeaderProps) {
               <ChevronDown className="h-4 w-4 text-primary-foreground/70" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem disabled>
               <User className="mr-2 h-4 w-4" />
               {user?.email}
             </DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <Shield className="mr-2 h-4 w-4" />
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE[user?.role ?? "User"]}`}>
+                {user?.role}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Switch Role (POC)</DropdownMenuLabel>
+            {ROLES.map((r) => (
+              <DropdownMenuItem
+                key={r}
+                onClick={() => setRole(r)}
+                className={user?.role === r ? "bg-muted" : ""}
+              >
+                {r}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
