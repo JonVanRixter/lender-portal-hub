@@ -107,6 +107,32 @@ export interface ActivityItem {
   user: string;
 }
 
+/* ── Onboarding Pipeline ── */
+export type OnboardingStage = "pre-screening" | "application" | "approval";
+export type OnboardingStatus = "in_progress" | "approved" | "rejected";
+
+export interface OnboardingSegmentation {
+  franchise: string;
+  size: string;
+  stockType: string[];
+  existingFinance: string;
+}
+
+export interface OnboardingApplication {
+  id: string;
+  dealerName: string;
+  companyNumber: string | null;
+  stage: OnboardingStage;
+  status: OnboardingStatus;
+  segmentation: OnboardingSegmentation;
+  qualificationNotes: string | null;
+  screeningResults: Record<string, unknown>;
+  checklistProgress: Record<string, unknown>;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DndEntityType = "Dealer" | "Director";
 export type DndReason = "Fraudulent activity" | "Failed compliance checks" | "Non-payment" | "Other";
 
