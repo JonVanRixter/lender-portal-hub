@@ -67,6 +67,12 @@ const RESULT_ICON: Record<string, React.ReactNode> = {
   Fail: <X className="h-4 w-4 text-destructive" />,
 };
 
+function resultLabel(r: PreScreenResult) {
+  if (!r) return "";
+  const icon = r === "Pass" ? "✅" : r === "Fail" ? "❌" : "⚠️";
+  return `${icon} ${r}`;
+}
+
 export default function PreScreeningPage() {
   const { appId } = useParams<{ appId: string }>();
   const navigate = useNavigate();
@@ -106,7 +112,7 @@ export default function PreScreeningPage() {
     return (
       <div className="max-w-3xl mx-auto py-12 text-center">
         <h1 className="text-xl font-bold text-foreground">Application Not Found</h1>
-        <Button variant="ghost" className="mt-4" onClick={() => navigate("/dealers")}>Back</Button>
+        <Button variant="ghost" className="mt-4" onClick={() => navigate("/dealers?tab=onboarding")}>Back</Button>
       </div>
     );
   }
@@ -146,21 +152,14 @@ export default function PreScreeningPage() {
 
   const handleSaveReturn = () => {
     toast({ title: "Saved", description: "Pre-screening progress saved." });
-    navigate("/dealers");
+navigate("/dealers?tab=onboarding");
   };
 
-  const resultLabel = (r: PreScreenResult) => {
-    if (!r) return "⬜ Not Set";
-    if (r === "Pass") return "✅ Pass";
-    if (r === "Fail") return "❌ Fail";
-    if (r === "Refer to TCG") return "⚠️ Refer to TCG";
-    return `🔵 ${r}`;
-  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers")}>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dealers?tab=onboarding")}>
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
         <Badge variant="outline" className="text-xs">

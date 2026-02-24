@@ -151,12 +151,14 @@ function LegacyCard({ app }: { app: OnboardingApplication }) {
 
   return (
     <Card className="p-3 space-y-2.5 hover:shadow-md transition-shadow border-border">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+      <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center gap-2 min-w-0">
           <Building2 className="h-4 w-4 shrink-0 text-primary" />
           <span className="font-semibold text-sm text-foreground truncate">{app.dealerName}</span>
         </div>
-        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        <button className="text-muted-foreground">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
       </div>
 
       <div className="flex items-center gap-2">

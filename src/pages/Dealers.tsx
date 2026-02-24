@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useDealers } from "@/contexts/DealersContext";
 import { DealerList } from "@/components/dealers/DealerList";
 import { DealerDetail } from "@/components/dealers/DealerDetail";
@@ -9,7 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function Dealers() {
   const { id } = useParams();
   const { dealers } = useDealers();
-  const [activeTab, setActiveTab] = useState("active");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "onboarding" ? "onboarding" : "active");
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "onboarding" && activeTab !== "onboarding") {
+      setActiveTab("onboarding");
+    }
+  }, [searchParams]);
 
   if (id) {
     const dealer = dealers.find((d) => d.id === id);

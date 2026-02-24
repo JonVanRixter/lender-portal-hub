@@ -1,8 +1,126 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import type { OnboardingApplicationFull, OnboardingAppStatus } from "@/types/onboarding";
-import { createEmptyApplication } from "@/types/onboarding";
+import { createEmptyApplication, createEmptyPreScreening, createEmptyChecklist } from "@/types/onboarding";
 
 const STORAGE_KEY = "dg_onboarding_apps";
+const SEEDED_KEY = "dg_onboarding_seeded_v2";
+
+/* ── Seed data so the pipeline isn't empty on first load ── */
+function buildSeederApps(): OnboardingApplicationFull[] {
+  const now = new Date().toISOString();
+  const base = () => ({ ...createEmptyApplication(), id: crypto.randomUUID(), createdAt: now, updatedAt: now }) as OnboardingApplicationFull;
+
+  // Draft
+  const draft1: OnboardingApplicationFull = {
+    ...base(),
+    companyName: "Riverside Motor Group Ltd",
+    companiesHouseNumber: "09812345",
+    tradingName: "Riverside Motors",
+    websiteUrl: "https://riversidemotors.co.uk",
+    primaryContactName: "James Whitfield",
+    primaryContactEmail: "james@riversidemotors.co.uk",
+    primaryContactPhone: "07700 123456",
+    address: { street: "14 Riverside Way", town: "Birmingham", county: "West Midlands", postcode: "B1 2HG" },
+    status: "draft",
+    createdAt: "2026-02-20T09:15:00.000Z",
+    updatedAt: "2026-02-20T09:15:00.000Z",
+  };
+
+  // Pre-screening (partially done)
+  const ps1: OnboardingApplicationFull = {
+    ...base(),
+    companyName: "Northern Star Autos Ltd",
+    companiesHouseNumber: "11234567",
+    tradingName: "Northern Star Cars",
+    websiteUrl: "https://northernstarcars.co.uk",
+    primaryContactName: "Sarah Henderson",
+    primaryContactEmail: "sarah@northernstarcars.co.uk",
+    primaryContactPhone: "07700 654321",
+    address: { street: "8 Station Road", town: "Leeds", county: "West Yorkshire", postcode: "LS1 4AP" },
+    status: "pre-screening",
+    createdAt: "2026-02-18T14:22:00.000Z",
+    updatedAt: "2026-02-22T10:05:00.000Z",
+  };
+  ps1.preScreening.companiesHouse = { ...ps1.preScreening.companiesHouse, companyStatus: "Active", director1Name: "Sarah Henderson", pscDisclosed: "Yes", addressMatches: "Yes", result: "Pass" };
+  ps1.preScreening.fcaRegister = { ...ps1.preScreening.fcaRegister, fcaRefNumber: "789012", authorisationType: "Full Authorisation", consumerCredit: "Yes", insuranceDistribution: "No", authorisationStatus: "Current", tradingNameMatches: "Yes", result: "Pass" };
+  ps1.preScreening.financialStanding = { ...ps1.preScreening.financialStanding, creditCheckSource: "Manual Review", creditScore: 72, ccjsPresent: "No", accountsFiledOnTime: "Yes", insolvencyNotices: "No", result: "Pass" };
+
+  // Checklist (in progress — 3/8 done)
+  const cl1: OnboardingApplicationFull = {
+    ...base(),
+    companyName: "Oakwood Vehicle Solutions Ltd",
+    companiesHouseNumber: "10567890",
+    tradingName: "Oakwood Cars",
+    websiteUrl: "https://oakwoodcars.co.uk",
+    primaryContactName: "David Chen",
+    primaryContactEmail: "david@oakwoodcars.co.uk",
+    primaryContactPhone: "07700 987654",
+    address: { street: "22 Oak Lane", town: "Manchester", county: "Greater Manchester", postcode: "M1 3FJ" },
+    status: "checklist",
+    createdAt: "2026-02-10T11:00:00.000Z",
+    updatedAt: "2026-02-23T16:30:00.000Z",
+  };
+  // All pre-screening passed
+  cl1.preScreening.companiesHouse.result = "Pass";
+  cl1.preScreening.fcaRegister.result = "Pass";
+  cl1.preScreening.financialStanding.result = "Pass";
+  cl1.preScreening.sanctionsAml.result = "Pass";
+  cl1.preScreening.websiteTrading.result = "Pass";
+  // 3 checklist sections complete
+  cl1.checklist.section1 = { ...cl1.checklist.section1, companyActive: "Yes", companyType: "Limited Company", director1Name: "David Chen", result: "Pass", complete: true };
+  cl1.checklist.section2 = { ...cl1.checklist.section2, fcaRefNumber: "654321", authorisationType: "Full Authorisation", consumerCredit: "Yes", result: "Pass", complete: true };
+  cl1.checklist.section3 = { ...cl1.checklist.section3, creditSource: "Manual Review", creditScore: 78, creditRating: "Good", ccjsOnRecord: "No", result: "Pass", complete: true };
+
+  // Pending approval
+  const pa1: OnboardingApplicationFull = {
+    ...base(),
+    companyName: "Summit Motor Finance Ltd",
+    companiesHouseNumber: "08765432",
+    tradingName: "Summit Motors",
+    websiteUrl: "https://summitmotors.co.uk",
+    primaryContactName: "Rachel Morgan",
+    primaryContactEmail: "rachel@summitmotors.co.uk",
+    primaryContactPhone: "07700 111222",
+    address: { street: "1 High Street", town: "Bristol", county: "Avon", postcode: "BS1 6QA" },
+    status: "pending-approval",
+    createdAt: "2026-02-05T08:45:00.000Z",
+    updatedAt: "2026-02-24T09:00:00.000Z",
+  };
+  pa1.preScreening.companiesHouse.result = "Pass";
+  pa1.preScreening.fcaRegister.result = "Pass";
+  pa1.preScreening.financialStanding.result = "Pass";
+  pa1.preScreening.sanctionsAml.result = "Pass";
+  pa1.preScreening.websiteTrading.result = "Pass";
+  Object.keys(pa1.checklist).forEach((k) => {
+    (pa1.checklist as any)[k].result = "Pass";
+    (pa1.checklist as any)[k].complete = true;
+  });
+
+  return [draft1, ps1, cl1, pa1];
+}
+
+function loadFromStorage(): OnboardingApplicationFull[] {
+  try {
+    // Seed once
+    if (!localStorage.getItem(SEEDED_KEY)) {
+      const seeds = buildSeederApps();
+      const existing = localStorage.getItem(STORAGE_KEY);
+      const current: OnboardingApplicationFull[] = existing ? JSON.parse(existing) : [];
+      const merged = [...current, ...seeds];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(SEEDED_KEY, "true");
+      return merged;
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(apps: OnboardingApplicationFull[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+}
 
 interface OnboardingContextType {
   applications: OnboardingApplicationFull[];
@@ -14,19 +132,6 @@ interface OnboardingContextType {
 }
 
 const OnboardingCtx = createContext<OnboardingContextType | null>(null);
-
-function loadFromStorage(): OnboardingApplicationFull[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(apps: OnboardingApplicationFull[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-}
 
 export function OnboardingWorkflowProvider({ children }: { children: ReactNode }) {
   const [applications, setApplications] = useState<OnboardingApplicationFull[]>(loadFromStorage);
