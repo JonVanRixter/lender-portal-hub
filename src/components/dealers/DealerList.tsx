@@ -22,7 +22,7 @@ const RAG_BADGE: Record<RagStatus, string> = {
 type SortKey = "name" | "overallScore" | "cssScore" | "lastAuditDate";
 const PAGE_SIZE = 10;
 
-export function DealerList({ dealers }: { dealers: Dealer[] }) {
+export function DealerList({ dealers, onAddDealer }: { dealers: Dealer[]; onAddDealer?: () => void }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [ragFilter, setRagFilter] = useState<RagStatus | "all">("all");
@@ -76,7 +76,7 @@ export function DealerList({ dealers }: { dealers: Dealer[] }) {
           <h1 className="text-2xl font-bold text-foreground">Dealers</h1>
           <p className="text-sm text-muted-foreground">Manage and monitor dealer compliance profiles</p>
         </div>
-        <Button data-tour="add-dealer-btn" className="gap-2" onClick={() => toast({ title: "Coming Soon", description: "Dealer onboarding wizard available in full MVP." })}>
+        <Button data-tour="add-dealer-btn" className="gap-2" onClick={() => onAddDealer ? onAddDealer() : navigate("/onboarding/new")}>
           <Plus className="h-4 w-4" /> Add New Dealer
         </Button>
       </div>
