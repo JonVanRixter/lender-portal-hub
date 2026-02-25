@@ -1,13 +1,19 @@
 import { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Mail, Phone, Globe, MapPin, Building2, AlertCircle, Clock, CheckCircle2, Users, UserCheck, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft, TrendingUp, TrendingDown, Minus, Globe, Building2,
+  Download, RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown,
+  ChevronUp, Trophy, AlertTriangle, FileText, Calendar, BarChart3,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useAlerts } from "@/contexts/AlertsContext";
-import { ReAuditModal } from "./ReAuditModal";
-import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { documents as allDocuments } from "@/data/mockData";
+import { getControlAreasForSection } from "@/data/controlAreaData";
+import { RequestReAuditModal } from "./RequestReAuditModal";
+import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange, DocStatus } from "@/types";
 
 const RAG_BADGE: Record<RagStatus, string> = {
   Green: "bg-rag-green/15 text-rag-green border-rag-green/30",
@@ -15,328 +21,452 @@ const RAG_BADGE: Record<RagStatus, string> = {
   Red: "bg-rag-red/15 text-rag-red border-rag-red/30",
 };
 
-const RAG_BAR: Record<RagStatus, string> = {
-  Green: "bg-rag-green",
-  Amber: "bg-rag-amber",
-  Red: "bg-rag-red",
+const RAG_BG: Record<RagStatus, string> = {
+  Green: "bg-rag-green/10 border-rag-green/20",
+  Amber: "bg-rag-amber/10 border-rag-amber/20",
+  Red: "bg-rag-red/10 border-rag-red/20",
 };
 
-const RESULT_ICON: Record<SectionResult, React.ReactNode> = {
-  Pass: <CheckCircle2 className="h-4 w-4 text-rag-green" />,
-  Pending: <Clock className="h-4 w-4 text-rag-amber" />,
-  Fail: <AlertCircle className="h-4 w-4 text-rag-red" />,
+const RESULT_PILL: Record<SectionResult, { class: string; icon: React.ReactNode }> = {
+  Pass: { class: "bg-rag-green/15 text-rag-green", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  Pending: { class: "bg-rag-amber/15 text-rag-amber", icon: <Clock className="h-3.5 w-3.5" /> },
+  Fail: { class: "bg-rag-red/15 text-rag-red", icon: <AlertCircle className="h-3.5 w-3.5" /> },
 };
 
-const ACTION_BADGE: Record<ActionStatus, string> = {
-  Open: "bg-rag-red/15 text-rag-red",
-  "In Progress": "bg-rag-amber/15 text-rag-amber",
+const ACTION_PILL: Record<ActionStatus, string> = {
+  Open: "bg-rag-amber/15 text-rag-amber",
+  "In Progress": "bg-secondary/15 text-secondary",
   Completed: "bg-rag-green/15 text-rag-green",
 };
 
-const CHANGE_ICON: Record<AuditChange, React.ReactNode> = {
-  up: <TrendingUp className="h-4 w-4 text-rag-green" />,
-  down: <TrendingDown className="h-4 w-4 text-rag-red" />,
-  neutral: <Minus className="h-4 w-4 text-muted-foreground" />,
+const RISK_PILL: Record<string, string> = {
+  High: "text-rag-red",
+  Medium: "text-rag-amber",
+  Low: "text-rag-green",
 };
+
+const DOC_STATUS_PILL: Record<DocStatus, string> = {
+  Valid: "bg-rag-green/15 text-rag-green",
+  "Expiring Soon": "bg-rag-amber/15 text-rag-amber",
+  Expired: "bg-rag-red/15 text-rag-red",
+};
+
+const CHANGE_ICON: Record<AuditChange, { icon: React.ReactNode; label: string }> = {
+  up: { icon: <TrendingUp className="h-4 w-4 text-rag-green" />, label: "Improved" },
+  down: { icon: <TrendingDown className="h-4 w-4 text-rag-red" />, label: "Declined" },
+  neutral: { icon: <Minus className="h-4 w-4 text-muted-foreground" />, label: "Unchanged" },
+};
+
+const RAG_LABEL: Record<RagStatus, string> = {
+  Green: "Green — Compliant",
+  Amber: "Amber — Under Review",
+  Red: "Red — Non-Compliant",
+};
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function getNextReviewDate(lastAudit: string) {
+  const d = new Date(lastAudit);
+  d.setMonth(d.getMonth() + 3);
+  return fmtDate(d.toISOString());
+}
 
 export function DealerDetail({ dealer }: { dealer: Dealer }) {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { alerts, acknowledge } = useAlerts();
-  const [reAuditOpen, setReAuditOpen] = useState(() => searchParams.get("reaudit") === "true");
+  const { toast } = useToast();
+  const [reAuditOpen, setReAuditOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
-  // Active threshold breach for this dealer
-  const activeBreachAlert = useMemo(
-    () => alerts.find((a) => a.dealerId === dealer.id && a.type === "Threshold Breach" && a.status === "Pending"),
-    [alerts, dealer.id]
+  const dealerDocs = useMemo(
+    () => allDocuments.filter((d) => d.dealerId === dealer.id),
+    [dealer.id]
   );
 
-  // Extract previous score from breach alert message for context
-  const breachContext = useMemo(() => {
-    if (!activeBreachAlert) return null;
-    // Try to parse "from Green (88) to Amber (66)" pattern
-    const match = activeBreachAlert.message.match(/from (\w+) \((\d+)\)/);
-    if (match) return { previousScore: Number(match[2]), previousRag: match[1] as RagStatus };
-    return null;
-  }, [activeBreachAlert]);
+  const sectionsPassed = useMemo(
+    () => (dealer.sections ?? []).filter((s) => s.result === "Pass").length,
+    [dealer.sections]
+  );
 
-  const handleOpenReAudit = () => {
-    setReAuditOpen(true);
+  const totalSections = dealer.sections?.length ?? 0;
+
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
-  const handleCloseReAudit = () => {
-    setReAuditOpen(false);
-    // Remove reaudit param
-    if (searchParams.has("reaudit")) {
-      searchParams.delete("reaudit");
-      setSearchParams(searchParams, { replace: true });
-    }
+  const handleDownloadReport = () => {
+    toast({
+      title: "📥 Audit Report",
+      description: "Audit report PDF available in full MVP.",
+    });
+  };
+
+  const handleViewHistoricalReport = () => {
+    toast({
+      title: "📄 Historical Report",
+      description: "Historical report available in full MVP.",
+    });
+  };
+
+  const handleDownloadDoc = () => {
+    toast({
+      title: "📥 Document Download",
+      description: "Document download available in full MVP.",
+    });
   };
 
   return (
     <div className="space-y-6">
-      {/* Back + Header */}
-      <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/dealers")} className="mb-3 -ml-2 text-muted-foreground">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dealers
-        </Button>
+      {/* Back button */}
+      <Button variant="ghost" size="sm" onClick={() => navigate("/dealers")} className="-ml-2 text-muted-foreground">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dealers
+      </Button>
 
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4" data-tour="dealer-score-card">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-foreground">{dealer.name}</h1>
-              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${RAG_BADGE[dealer.ragStatus]}`}>
-                {dealer.ragStatus}
-              </span>
+      {/* 2.1 — Page Header */}
+      <Card className="border-border">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-foreground">{dealer.tradingName}</h1>
+              <p className="text-sm text-muted-foreground">{dealer.name}</p>
+              {dealer.companiesHouseNumber && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" /> Companies House: {dealer.companiesHouseNumber}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">FCA Reference: 734291</p>
+              {dealer.website && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" /> {dealer.website}
+                </p>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">Trading as: {dealer.tradingName}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {dealer.cssStatus && (
-              <Badge variant={dealer.cssStatus === "Reward" ? "default" : "secondary"} className="text-xs uppercase tracking-wide">
-                CSS: {dealer.cssStatus}
-              </Badge>
-            )}
-            <Button onClick={handleOpenReAudit} className="gap-1.5 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white" data-tour="update-audit-btn">
-              <RefreshCw className="h-4 w-4" /> Update Audit
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Threshold Breach Banner */}
-      {activeBreachAlert && (
-        <div className="rounded-md border border-rag-red/30 bg-rag-red/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-tour="breach-banner">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-rag-red mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Active threshold breach alert for this dealer.</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{activeBreachAlert.message}</p>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-bold text-foreground">{dealer.overallScore}</span>
+                <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${RAG_BADGE[dealer.ragStatus]}`}>
+                  {dealer.ragStatus}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">Last Audit: {fmtDate(dealer.lastAuditDate)}</p>
+              <p className="text-xs text-muted-foreground">Audited by: The Compliance Guys</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Button onClick={handleDownloadReport} className="gap-1.5 bg-primary hover:bg-primary/90">
+                  <Download className="h-4 w-4" /> Download Audit Report
+                </Button>
+                <Button variant="outline" onClick={() => setReAuditOpen(true)} className="gap-1.5">
+                  <RefreshCw className="h-4 w-4" /> Request Re-Audit
+                </Button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => acknowledge(activeBreachAlert.id)}>
-              Acknowledge Alert
-            </Button>
-            <Button size="sm" className="h-8 text-xs gap-1 bg-[#3d1468] hover:bg-[#3d1468]/90 text-white" onClick={handleOpenReAudit}>
-              <RefreshCw className="h-3.5 w-3.5" /> Re-run Audit Now
-            </Button>
-          </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
 
-      {/* Score Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-border">
+      {/* 2.2 — Audit Summary Card Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className={`border ${RAG_BG[dealer.ragStatus]}`}>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Overall Score</p>
             <p className="text-3xl font-bold text-foreground mt-1">{dealer.overallScore}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">CSS Score</p>
-            <p className="text-3xl font-bold text-foreground mt-1">{dealer.cssScore}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Last Audit</p>
-            <p className="text-lg font-bold text-foreground mt-1">
-              {new Date(dealer.lastAuditDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+            <p className="text-xs font-medium mt-1" style={{ color: `hsl(var(--rag-${dealer.ragStatus.toLowerCase()}))` }}>
+              {RAG_LABEL[dealer.ragStatus]}
             </p>
           </CardContent>
         </Card>
         <Card className="border-border">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Sections</p>
-            <p className="text-3xl font-bold text-foreground mt-1">{dealer.sections?.length ?? 0}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold flex items-center gap-1">
+              <Calendar className="h-3 w-3" /> Audit Date
+            </p>
+            <p className="text-lg font-bold text-foreground mt-1">{fmtDate(dealer.lastAuditDate)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Next review due: {getNextReviewDate(dealer.lastAuditDate)}</p>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Contact Info */}
-      {(dealer.address || dealer.contactEmail || dealer.contactPhone || dealer.website) && (
         <Card className="border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Contact Details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            {dealer.address && (
-              <div className="flex items-start gap-2 text-foreground"><MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />{dealer.address}</div>
-            )}
-            {dealer.contactEmail && (
-              <div className="flex items-center gap-2 text-foreground"><Mail className="h-4 w-4 text-muted-foreground shrink-0" />{dealer.contactEmail}</div>
-            )}
-            {dealer.contactPhone && (
-              <div className="flex items-center gap-2 text-foreground"><Phone className="h-4 w-4 text-muted-foreground shrink-0" />{dealer.contactPhone}</div>
-            )}
-            {dealer.website && (
-              <div className="flex items-center gap-2 text-foreground"><Globe className="h-4 w-4 text-muted-foreground shrink-0" />{dealer.website}</div>
-            )}
-            {dealer.companiesHouseNumber && (
-              <div className="flex items-center gap-2 text-foreground"><Building2 className="h-4 w-4 text-muted-foreground shrink-0" />CH: {dealer.companiesHouseNumber}</div>
-            )}
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" /> Sections Passed
+            </p>
+            <p className="text-lg font-bold text-foreground mt-1">{sectionsPassed} / {totalSections} sections</p>
+            <Progress value={totalSections > 0 ? (sectionsPassed / totalSections) * 100 : 0} className="h-1.5 mt-2 [&>div]:bg-rag-green" />
           </CardContent>
         </Card>
-      )}
-
-      {/* Directors & Shareholders */}
-      {(dealer.directors?.length || dealer.shareholders?.length) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {dealer.directors && dealer.directors.length > 0 && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Directors ({dealer.directors.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {dealer.directors.map((d, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-md border border-border p-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{d.name}</p>
-                      <p className="text-xs text-muted-foreground">{d.role}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      Appointed: {new Date(d.appointedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-          {dealer.shareholders && dealer.shareholders.length > 0 && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" /> Shareholders ({dealer.shareholders.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {dealer.shareholders.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-md border border-border p-3">
-                    <p className="text-sm font-medium text-foreground">{s.name}</p>
-                    <Badge variant="secondary" className="text-xs">{s.shareholding}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Audit Sections */}
-      {dealer.sections && dealer.sections.length > 0 && (
-        <Card className="border-border" data-tour="audit-sections">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Audit Sections</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {dealer.sections.map((s) => (
-              <div key={s.id} className="rounded-md border border-border p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {RESULT_ICON[s.result]}
-                    <span className="font-semibold text-sm text-foreground">{s.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold tabular-nums text-foreground">{s.score}</span>
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${RAG_BADGE[s.ragStatus]}`}>
-                      {s.ragStatus}
-                    </span>
-                  </div>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-2">
-                  <div className={`h-full rounded-full ${RAG_BAR[s.ragStatus]}`} style={{ width: `${s.score}%` }} />
-                </div>
-                <p className="text-xs text-muted-foreground">{s.notes}</p>
-              </div>
-            ))}
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Customer Sentiment</p>
+            <p className="text-3xl font-bold text-foreground mt-1">{dealer.cssScore}</p>
+            {dealer.cssStatus && (
+              <Badge variant={dealer.cssStatus === "Reward" ? "default" : "secondary"} className="text-[10px] mt-1 gap-1">
+                {dealer.cssStatus === "Reward" ? <Trophy className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                {dealer.cssStatus}
+              </Badge>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-1">Score provided by The Compliance Guys</p>
           </CardContent>
         </Card>
-      )}
-
-      {/* Bottom row: Key Actions + Audit History side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Key Actions */}
-        {dealer.keyActions && dealer.keyActions.length > 0 && (
-          <Card className="border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
-                Key Actions ({dealer.keyActions.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {dealer.keyActions.map((a) => (
-                <div key={a.id} className="rounded-md border border-border p-3">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="text-sm font-medium text-foreground">{a.description}</p>
-                    <span className={`shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ACTION_BADGE[a.status]}`}>
-                      {a.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>Due: {new Date(a.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                    <span>→ {a.assignedTo}</span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Audit History */}
-        {dealer.auditHistory && dealer.auditHistory.length > 0 && (
-          <Card className="border-border" data-tour="audit-history">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Audit History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {dealer.auditHistory.map((h) => (
-                  <div key={h.id} className="flex items-center justify-between rounded-md border border-border p-3">
-                    <div className="flex items-center gap-3">
-                      {CHANGE_ICON[h.change]}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {new Date(h.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">by {h.initiatedBy}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold tabular-nums text-foreground">{h.overallScore}</span>
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${RAG_BADGE[h.ragStatus]}`}>
-                        {h.ragStatus}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
-      {/* Notes */}
+      {/* 2.3 — Report Header */}
+      <div className="border-t border-b border-border py-4 space-y-1">
+        <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">Compliance Audit Report</h2>
+        <p className="text-sm text-muted-foreground">Prepared by: The Compliance Guys Ltd</p>
+        <p className="text-sm text-muted-foreground">
+          Audit Date: {fmtDate(dealer.lastAuditDate)} · Report Ref: AR-{dealer.id.replace("d", "")}-2026
+        </p>
+        <p className="text-xs text-muted-foreground italic">This report is produced by TCG and is read-only.</p>
+      </div>
+
+      {/* 2.4 — Executive Summary */}
       {dealer.notes && (
         <Card className="border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Notes</CardTitle>
+            <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Executive Summary</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <p className="text-sm text-foreground leading-relaxed">{dealer.notes}</p>
+            <div className="flex items-center gap-2 pt-2 border-t border-border">
+              <span className="text-sm font-semibold text-foreground">Overall Conclusion:</span>
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${RAG_BADGE[dealer.ragStatus]}`}>
+                {dealer.ragStatus === "Green" ? "LOW RISK — GREEN" : dealer.ragStatus === "Amber" ? "MEDIUM RISK — AMBER" : "HIGH RISK — RED"}
+              </span>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Re-Audit Modal */}
-      <ReAuditModal
+      {/* 2.5 — Section Results Breakdown */}
+      {dealer.sections && dealer.sections.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Section Results</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {dealer.sections.map((s) => {
+              const expanded = expandedSections.has(s.id);
+              const controlAreas = getControlAreasForSection(s.name, s.result, s.notes);
+              return (
+                <Card key={s.id} className="border-border">
+                  <CardContent className="p-4 space-y-3">
+                    {/* Section header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-bold text-sm text-foreground">{s.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${RESULT_PILL[s.result].class}`}>
+                          {RESULT_PILL[s.result].icon} {s.result}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Score + RAG */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Score: <strong className="text-foreground">{s.score}</strong> / 100</span>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${RAG_BADGE[s.ragStatus]}`}>
+                        {s.ragStatus}
+                      </span>
+                    </div>
+                    {/* Notes */}
+                    <p className="text-xs text-muted-foreground leading-relaxed">"{s.notes}"</p>
+                    {/* Expand toggle */}
+                    {controlAreas.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-center text-xs text-primary gap-1"
+                        onClick={() => toggleSection(s.id)}
+                      >
+                        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        {expanded ? "Hide Detail" : "View Full Detail"}
+                      </Button>
+                    )}
+                    {/* 2.6 — Control Area Detail Table */}
+                    {expanded && controlAreas.length > 0 && (
+                      <div className="overflow-x-auto rounded-md border border-border mt-2">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Control Area</th>
+                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground hidden sm:table-cell">Objective</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Result</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Risk</th>
+                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Notes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {controlAreas.map((ca, idx) => (
+                              <tr key={idx} className="border-b border-border last:border-0">
+                                <td className="px-2 py-1.5 font-medium text-foreground">{ca.controlArea}</td>
+                                <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{ca.objective}</td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${RESULT_PILL[ca.result].class} rounded-full px-1.5 py-0.5`}>
+                                    {ca.result === "Pass" ? "✅" : ca.result === "Pending" ? "⚠️" : "❌"} {ca.result}
+                                  </span>
+                                </td>
+                                <td className={`px-2 py-1.5 text-center text-[10px] font-semibold ${RISK_PILL[ca.riskRating]}`}>
+                                  {ca.riskRating}
+                                </td>
+                                <td className="px-2 py-1.5 text-muted-foreground">{ca.notes}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 2.7 — Key Actions Panel */}
+      <div className="space-y-3">
+        <div className="border-t border-border pt-4 space-y-1">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Key Actions from Audit</h3>
+          <p className="text-xs text-muted-foreground">Actions below have been raised by The Compliance Guys.</p>
+        </div>
+        {dealer.keyActions && dealer.keyActions.length > 0 ? (
+          <div className="overflow-x-auto rounded-md border border-border bg-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">#</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Action</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground hidden sm:table-cell">Priority</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Due Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dealer.keyActions.map((a, idx) => (
+                  <tr key={a.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs">{idx + 1}</td>
+                    <td className="px-3 py-2.5 font-medium text-foreground">{a.description}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">Medium</td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{fmtDate(a.dueDate)}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ACTION_PILL[a.status]}`}>
+                        {a.status === "Open" ? "🟡 Open" : a.status === "In Progress" ? "🔵 In Progress" : "🟢 Closed"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Card className="border-border">
+            <CardContent className="p-4 text-sm text-muted-foreground">No actions raised for this dealer.</CardContent>
+          </Card>
+        )}
+        <p className="text-xs text-muted-foreground italic">
+          To raise a new action or update the status of an existing action, contact The Compliance Guys: compliance@thecomplianceguys.co.uk
+        </p>
+      </div>
+
+      {/* Bottom row: Audit History + Documents */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 2.8 — Audit History Timeline */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Audit History</h3>
+          {dealer.auditHistory && dealer.auditHistory.length > 0 ? (
+            <div className="space-y-0 relative">
+              {/* Timeline line */}
+              <div className="absolute left-3 top-3 bottom-3 w-px bg-border" />
+              {dealer.auditHistory.map((h) => (
+                <div key={h.id} className="flex items-start gap-4 relative pl-8 py-3">
+                  {/* Dot */}
+                  <div className={`absolute left-1.5 top-4 h-3 w-3 rounded-full border-2 border-card ${
+                    h.ragStatus === "Green" ? "bg-rag-green" : h.ragStatus === "Amber" ? "bg-rag-amber" : "bg-rag-red"
+                  }`} />
+                  <div className="flex-1 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{fmtDate(h.date)}</p>
+                      <p className="text-xs text-muted-foreground">Audited by: The Compliance Guys</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-bold tabular-nums text-foreground">{h.overallScore}</span>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${RAG_BADGE[h.ragStatus]}`}>
+                        {h.ragStatus}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {CHANGE_ICON[h.change].icon}
+                      </span>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-2" onClick={handleViewHistoricalReport}>
+                        View Report
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-border">
+              <CardContent className="p-4 text-sm text-muted-foreground">No audit history available.</CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* 2.9 — Documents Panel */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Documents</h3>
+          {dealerDocs.length > 0 ? (
+            <div className="overflow-x-auto rounded-md border border-border bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Document</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground hidden sm:table-cell">Category</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground hidden md:table-cell">Uploaded</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Expiry</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-muted-foreground">Status</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dealerDocs.map((doc) => (
+                    <tr key={doc.id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2 font-medium text-foreground text-xs">{doc.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs hidden sm:table-cell">{doc.category}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs hidden md:table-cell">{fmtDate(doc.uploadDate)}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">{doc.expiryDate ? fmtDate(doc.expiryDate) : "—"}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${DOC_STATUS_PILL[doc.status]}`}>
+                          {doc.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-2 gap-1" onClick={handleDownloadDoc}>
+                          <Download className="h-3 w-3" /> Download
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Card className="border-border">
+              <CardContent className="p-4 text-sm text-muted-foreground">No documents on file for this dealer.</CardContent>
+            </Card>
+          )}
+          <p className="text-xs text-muted-foreground italic">
+            Documents are managed by The Compliance Guys as part of the audit process. To submit additional documents, contact: compliance@thecomplianceguys.co.uk
+          </p>
+        </div>
+      </div>
+
+      {/* Request Re-Audit Modal */}
+      <RequestReAuditModal
         open={reAuditOpen}
-        onClose={handleCloseReAudit}
-        dealer={dealer}
-        breachContext={breachContext}
+        onClose={() => setReAuditOpen(false)}
+        dealerName={dealer.tradingName}
       />
     </div>
   );
