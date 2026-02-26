@@ -102,9 +102,9 @@ function AuditLogPanel() {
 export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  // Map roles: "Super Admin" → Admin-level access for settings
-  const isAdmin = user?.role === "Super Admin" || user?.role === "Admin";
-  const displayRole = user?.role === "Super Admin" ? "Admin" : user?.role ?? "User";
+  // Only Super Admin can edit settings
+  const isAdmin = user?.role === "Super Admin";
+  const displayRole = user?.role ?? "User";
 
   // General
   const [contactEmail, setContactEmail] = useState("compliance@acmelending.com");
