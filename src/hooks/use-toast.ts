@@ -2,14 +2,15 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_LIMIT = 3;
+const TOAST_REMOVE_DELAY = 4000;
 
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  duration?: number;
 };
 
 const actionTypes = {
@@ -144,6 +145,9 @@ function toast({ ...props }: Toast) {
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
+  // Default duration: 4s for success/info, 6s for warning-like. 0 = no auto-dismiss.
+  const duration = props.duration ?? TOAST_REMOVE_DELAY;
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
@@ -155,6 +159,13 @@ function toast({ ...props }: Toast) {
       },
     },
   });
+
+  // Auto-dismiss after duration (unless 0 or negative = manual only)
+  if (duration > 0) {
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
 
   return {
     id: id,

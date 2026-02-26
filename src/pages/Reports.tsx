@@ -371,30 +371,24 @@ function AlertsSummaryCard() {
 
 // ─── Portfolio Download ───
 
-function generatePortfolioReport() {
+function generatePortfolioCsv() {
   const now = new Date();
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const fmtDateTime = () =>
+    now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) +
+    " " +
+    now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const dateRef = now.toISOString().slice(0, 10).replace(/-/g, "");
+
+  const esc = (v: string | number) => {
+    const s = String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+  };
 
   const avgScore = (dealers.reduce((s, d) => s + d.overallScore, 0) / dealers.length).toFixed(1);
   const ragCounts = { Green: 0, Amber: 0, Red: 0 } as Record<RagStatus, number>;
   dealers.forEach((d) => ragCounts[d.ragStatus]++);
-
-  const sortedDealers = [...dealers].sort((a, b) => b.overallScore - a.overallScore);
-  const dealerLines = sortedDealers.map((d) => {
-    const name = d.tradingName.padEnd(24);
-    const score = String(d.overallScore).padEnd(8);
-    const rag = d.ragStatus.padEnd(9);
-    const audit = fmtDate(d.lastAuditDate);
-    return `${name}${score}${rag}${audit}`;
-  }).join("\n");
-
-  const pendingThreshold = initialAlerts
-    .filter((a) => a.status === "Pending" && a.type === "Threshold Breach")
-    .map((a) => {
-      const dName = dealers.find((d) => d.id === a.dealerId)?.tradingName ?? "Unknown";
-      return `- ${dName}: ${a.message}`;
-    }).join("\n") || "- None";
 
   const docCounts = { Valid: 0, "Expiring Soon": 0, Expired: 0 };
   documents.forEach((d) => {
@@ -403,37 +397,74 @@ function generatePortfolioReport() {
     else docCounts.Expired++;
   });
 
-  return `DEALERGUARD — PORTFOLIO SUMMARY REPORT
-Generated: ${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-Lender: Apex Motor Finance Ltd
-────────────────────────────────────────
+  const expiringDocs = documents.filter((d) => d.status === "Expiring Soon" || d.status === "Expired");
+  const openActions = dealers.flatMap((d) =>
+    (d.keyActions ?? [])
+      .filter((a) => a.status === "Open" || a.status === "In Progress")
+      .map((a) => ({ dealerName: d.tradingName, ...a }))
+  );
 
-PORTFOLIO OVERVIEW
-Total Dealers:          ${dealers.length}
-Average Score:          ${avgScore}
-Green (Compliant):      ${ragCounts.Green} dealers
-Amber (Attention):      ${ragCounts.Amber} dealers
-Red (Critical):         ${ragCounts.Red} dealers
+  const sortedDealers = [...dealers].sort((a, b) => b.overallScore - a.overallScore);
 
-DEALER LIST
-────────────────────────────────────────
-${"Dealer Name".padEnd(24)}${"Score".padEnd(8)}${"RAG".padEnd(9)}Last Audit
-${dealerLines}
+  const rows: string[][] = [];
+  rows.push(["DEALERGUARD PORTFOLIO SUMMARY REPORT"]);
+  rows.push(["Generated:", fmtDateTime()]);
+  rows.push(["Lender:", "Apex Motor Finance Ltd"]);
+  rows.push(["Report Ref:", `PF-${dateRef}`]);
+  rows.push([]);
+  rows.push(["PORTFOLIO OVERVIEW"]);
+  rows.push(["Total Dealers:", String(dealers.length)]);
+  rows.push(["Average Score:", avgScore]);
+  rows.push(["Green (Compliant):", String(ragCounts.Green)]);
+  rows.push(["Amber (Attention Needed):", String(ragCounts.Amber)]);
+  rows.push(["Red (Critical):", String(ragCounts.Red)]);
+  rows.push([]);
+  rows.push(["DEALER LIST"]);
+  rows.push(["Dealer Name", "Trading Name", "Overall Score", "RAG Status", "CSS Score", "CSS Status", "Last Audit Date"]);
+  sortedDealers.forEach((d) => {
+    rows.push([esc(d.name), esc(d.tradingName), String(d.overallScore), d.ragStatus, String(d.cssScore), d.cssStatus, fmtDate(d.lastAuditDate)]);
+  });
+  rows.push([]);
+  rows.push(["CRITICAL ALERTS (PENDING)"]);
+  rows.push(["Alert Type", "Dealer Name", "Severity", "Message", "Date Raised"]);
+  const pendingAlerts = initialAlerts.filter((a) => a.status === "Pending" && a.type === "Threshold Breach");
+  if (pendingAlerts.length === 0) {
+    rows.push(["None"]);
+  } else {
+    pendingAlerts.forEach((a) => {
+      const dName = dealers.find((d) => d.id === a.dealerId)?.tradingName ?? "Unknown";
+      rows.push([a.type, esc(dName), a.severity, esc(a.message), fmtDate(a.date)]);
+    });
+  }
+  rows.push([]);
+  rows.push(["DOCUMENT EXPIRY SUMMARY"]);
+  rows.push(["Status", "Count"]);
+  rows.push(["Valid", String(docCounts.Valid)]);
+  rows.push(["Expiring Soon", String(docCounts["Expiring Soon"])]);
+  rows.push(["Expired", String(docCounts.Expired)]);
+  rows.push([]);
+  rows.push(["EXPIRING & EXPIRED DOCUMENTS DETAIL"]);
+  rows.push(["Document Name", "Dealer Name", "Category", "Expiry Date", "Status"]);
+  expiringDocs.forEach((doc) => {
+    const dName = dealers.find((d) => d.id === doc.dealerId)?.tradingName ?? "Unknown";
+    rows.push([esc(doc.name), esc(dName), esc(doc.category), doc.expiryDate ? fmtDate(doc.expiryDate) : "—", doc.status]);
+  });
+  rows.push([]);
+  rows.push(["OPEN ACTIONS SUMMARY"]);
+  rows.push(["Dealer Name", "Action Description", "Status", "Due Date"]);
+  if (openActions.length === 0) {
+    rows.push(["None"]);
+  } else {
+    openActions.forEach((a) => {
+      rows.push([esc(a.dealerName), esc(a.description), a.status, fmtDate(a.dueDate)]);
+    });
+  }
+  rows.push([]);
+  rows.push(["---"]);
+  rows.push(["Report generated by DealerGuard · The Compliance Guys Ltd"]);
+  rows.push(["compliance@thecomplianceguys.co.uk"]);
 
-CRITICAL ALERTS (PENDING)
-────────────────────────────────────────
-${pendingThreshold}
-
-EXPIRING DOCUMENTS SUMMARY
-────────────────────────────────────────
-Valid:          ${docCounts.Valid}
-Expiring Soon:  ${docCounts["Expiring Soon"]}
-Expired:        ${docCounts.Expired}
-
-────────────────────────────────────────
-Report generated by DealerGuard
-The Compliance Guys Ltd · compliance@thecomplianceguys.co.uk
-`;
+  return rows.map((r) => r.join(",")).join("\n");
 }
 
 // ─── Individual Dealer Report ───
@@ -664,18 +695,18 @@ export default function Reports() {
   const handleDownloadPortfolio = () => {
     setDownloading(true);
     setTimeout(() => {
-      const content = generatePortfolioReport();
-      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const content = generatePortfolioCsv();
+      const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `DealerGuard_Portfolio_Report_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `dealerguard-portfolio-report-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setDownloading(false);
-      toast({ title: "✅ Portfolio report downloaded." });
+      toast({ title: "✅ Portfolio report downloaded as CSV.", duration: 4000 });
     }, 800);
   };
 
@@ -711,7 +742,7 @@ export default function Reports() {
           </div>
           <Button variant="outline" onClick={handleDownloadPortfolio} disabled={downloading} className="gap-2">
             <FileDown className="h-4 w-4" />
-            {downloading ? "⏳ Generating..." : "📥 Download Portfolio Report"}
+            {downloading ? "⏳ Generating..." : "📥 Download Portfolio Report (CSV)"}
           </Button>
         </div>
 
