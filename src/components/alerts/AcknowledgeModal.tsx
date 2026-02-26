@@ -42,7 +42,7 @@ export function AcknowledgeModal({ alert, dealerName, onClose, onConfirm }: Prop
         <DialogHeader>
           <DialogTitle>Acknowledge Alert</DialogTitle>
           <DialogDescription>
-            Confirm acknowledgement for this alert. This action cannot be undone.
+            Confirm you have reviewed this alert. You can add an optional note for your records.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 pt-2">
@@ -55,7 +55,7 @@ export function AcknowledgeModal({ alert, dealerName, onClose, onConfirm }: Prop
             <Label htmlFor="notes">Notes (optional)</Label>
             <Textarea
               id="notes"
-              placeholder="Add any notes about this acknowledgement…"
+              placeholder="Add a note about how this was resolved..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -63,7 +63,7 @@ export function AcknowledgeModal({ alert, dealerName, onClose, onConfirm }: Prop
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleConfirm}>Acknowledge</Button>
+            <Button onClick={handleConfirm}>Confirm Acknowledgement</Button>
           </div>
         </div>
       </DialogContent>

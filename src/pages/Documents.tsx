@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Eye, X, ArrowLeft } from "lucide-react";
 import { dealers, documents as initialDocuments } from "@/data/mockData";
 import type { DealerDocument, DocCategory, DocStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -30,16 +30,34 @@ const dealerMap = new Map(dealers.map((d) => [d.id, d.name]));
 
 export default function Documents() {
   const [docs, setDocs] = useState<DealerDocument[]>(initialDocuments);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read query params for filtering from alerts
+  const dealerParam = searchParams.get("dealer");
+  const statusParam = searchParams.get("status");
+  const hasAlertFilter = !!(dealerParam || statusParam);
+
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [catFilter, setCatFilter] = useState<DocCategory | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<DocStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<DocStatus | "all">(
+    statusParam && STATUSES.includes(statusParam as DocStatus) ? statusParam as DocStatus : "all"
+  );
   const [sortKey, setSortKey] = useState<SortKey>("uploadDate");
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
 
+  const clearAlertFilters = () => {
+    setSearchParams({});
+    setSearch("");
+    setStatusFilter("all");
+    setCatFilter("all");
+    setPage(0);
+  };
+
   const filtered = useMemo(() => {
     let list = docs;
+    // Dealer param filter
+    if (dealerParam) list = list.filter((d) => d.dealerId === dealerParam);
     if (catFilter !== "all") list = list.filter((d) => d.category === catFilter);
     if (statusFilter !== "all") list = list.filter((d) => d.status === statusFilter);
     if (search) {
@@ -57,7 +75,6 @@ export default function Documents() {
       } else if (sortKey === "uploadDate") {
         cmp = new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime();
       } else {
-        // Sort nulls (no expiry) to the end
         const aExp = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
         const bExp = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
         cmp = aExp - bExp;
@@ -65,7 +82,7 @@ export default function Documents() {
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [docs, catFilter, statusFilter, search, sortKey, sortAsc]);
+  }, [docs, dealerParam, catFilter, statusFilter, search, sortKey, sortAsc]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -96,6 +113,8 @@ export default function Documents() {
       ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
       : "—";
 
+  const dealerName = dealerParam ? dealerMap.get(dealerParam) : null;
+
   return (
     <div className="space-y-6" data-tour="document-table">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -105,6 +124,24 @@ export default function Documents() {
         </div>
         <UploadDocumentModal onUpload={handleUpload} />
       </div>
+
+      {/* Alert filter context banner */}
+      {hasAlertFilter && (
+        <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <ArrowLeft className="h-4 w-4 text-primary" />
+            <span>
+              Viewing documents filtered from alert
+              {dealerName && <> — <strong>{dealerName}</strong></>}
+              {statusParam && <> · <strong>{statusParam}</strong></>}
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={clearAlertFilters}>
+            <X className="h-3.5 w-3.5" />
+            Clear filters
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">

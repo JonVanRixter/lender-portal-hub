@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw } from "lucide-react";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw, FileText } from "lucide-react";
 import { useAlerts } from "@/contexts/AlertsContext";
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -20,14 +20,8 @@ const SEVERITY_PILL: Record<AlertSeverity, string> = {
   Low: "bg-rag-green/15 text-rag-green",
 };
 
-const STATUS_PILL: Record<AlertStatus, string> = {
-  Pending: "bg-rag-amber/15 text-rag-amber",
-  Acknowledged: "bg-muted text-muted-foreground",
-};
-
 const TYPES: AlertType[] = ["Threshold Breach", "Document Expiry", "Manual Review Required"];
 const SEVERITIES: AlertSeverity[] = ["High", "Medium", "Low"];
-const STATUSES: AlertStatus[] = ["Pending", "Acknowledged"];
 
 const PAGE_SIZE = 8;
 
@@ -76,6 +70,20 @@ export default function AlertsPage() {
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
+  const getDocumentLink = (alert: Alert) => {
+    const msg = alert.message.toLowerCase();
+    const status = msg.includes("expired") || msg.includes("expire") && !msg.includes("expiring")
+      ? "Expired"
+      : "Expiring Soon";
+    return `/documents?dealer=${alert.dealerId}&status=${encodeURIComponent(status)}`;
+  };
+
+  const getEmptyStateMessage = () => {
+    if (statusFilter === "Pending") return "✅ No pending alerts — your portfolio is up to date.";
+    if (statusFilter === "Acknowledged") return "No acknowledged alerts in this period.";
+    return "No alerts found.";
+  };
+
   return (
     <div className="space-y-6" data-tour="alert-table">
       <div>
@@ -113,12 +121,13 @@ export default function AlertsPage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as AlertStatus | "all"); setPage(0); }}>
-          <SelectTrigger className="w-full sm:w-40 h-9">
-            <SelectValue placeholder="All Statuses" />
+          <SelectTrigger className="w-full sm:w-48 h-9">
+            <SelectValue placeholder="All Alerts" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            <SelectItem value="all">All Alerts</SelectItem>
+            <SelectItem value="Pending">⏳ Pending Action</SelectItem>
+            <SelectItem value="Acknowledged">✓ Acknowledged</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -159,16 +168,17 @@ export default function AlertsPage() {
           </thead>
           <tbody>
             {paginated.length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">No alerts found.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{getEmptyStateMessage()}</td></tr>
             ) : (
               paginated.map((alert) => {
                 const rowHref = alert.type === "Document Expiry"
-                  ? `/documents?search=${encodeURIComponent(getDealerName(alert.dealerId))}`
+                  ? getDocumentLink(alert)
                   : `/dealers/${alert.dealerId}`;
+                const isAcknowledged = alert.status === "Acknowledged";
                 return (
                 <tr
                   key={alert.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors cursor-pointer"
+                  className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors cursor-pointer ${isAcknowledged ? "bg-muted/30" : ""}`}
                   onClick={() => navigate(rowHref)}
                 >
                   <td className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">{alert.type}</td>
@@ -183,15 +193,21 @@ export default function AlertsPage() {
                   <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell max-w-xs truncate">{alert.message}</td>
                   <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{fmtDate(alert.date)}</td>
                   <td className="px-3 py-2.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_PILL[alert.status]}`}>
-                      {alert.status}
-                    </span>
+                    {isAcknowledged ? (
+                      <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground">
+                        ✓ Acknowledged
+                      </span>
+                    ) : (
+                      <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-rag-amber/15 text-rag-amber">
+                        ⏳ Pending
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {alert.status === "Pending" && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           className="h-7 gap-1 text-xs"
                           onClick={() => setAckAlert(alert)}
@@ -200,19 +216,32 @@ export default function AlertsPage() {
                           Acknowledge
                         </Button>
                       )}
-                      {alert.type === "Threshold Breach" && (
+                      {alert.status === "Acknowledged" && (
+                        <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold bg-muted text-muted-foreground">
+                          ✓ Acknowledged
+                        </span>
+                      )}
+                      {alert.type === "Threshold Breach" && alert.status === "Pending" && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 gap-1 text-xs text-[#3d1468] hover:text-[#3d1468]/80"
+                          className="h-7 gap-1 text-xs text-primary hover:text-primary/80"
                           onClick={() => navigate(`/dealers/${alert.dealerId}?reaudit=true`)}
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                           Re-run Audit
                         </Button>
                       )}
-                      {alert.status !== "Pending" && alert.type !== "Threshold Breach" && (
-                        <span className="text-xs text-muted-foreground">—</span>
+                      {alert.type === "Document Expiry" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-primary hover:text-primary/80"
+                          onClick={() => navigate(getDocumentLink(alert))}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          View Document
+                        </Button>
                       )}
                     </div>
                   </td>
