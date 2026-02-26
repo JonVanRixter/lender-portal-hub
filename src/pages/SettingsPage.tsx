@@ -141,11 +141,11 @@ export default function SettingsPage() {
   // Team state
   const [team, setTeam] = useState<TeamMember[]>(initialTeam);
 
-  // Determine if logged-in user is the Super Admin
+  // Determine access level from the POC role switcher in the header
   const currentSuperAdmin = team.find((m) => m.isSuperAdmin);
-  const isSuperAdmin = user?.role === "Super Admin" ||
-    (user?.name === "Test User" && currentSuperAdmin?.email === "s.jenkins@apexmotorfinance.co.uk");
-  const displayRole = isSuperAdmin ? "Super Admin" : (user?.role ?? "User");
+  const isSuperAdmin = user?.role === "Super Admin";
+  const isAdmin = isSuperAdmin || user?.role === "Admin";
+  const displayRole = user?.role ?? "User";
 
   // General
   const [contactEmail, setContactEmail] = useState("compliance@acmelending.com");
@@ -250,7 +250,7 @@ export default function SettingsPage() {
 
   const handleAddUser = () => {
     if (!newEmail || !newName) return;
-    if (!isSuperAdmin) return;
+    if (!isAdmin) return;
     const member: TeamMember = {
       id: `u-${Date.now()}`,
       name: newName,
@@ -361,7 +361,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground hidden sm:inline">Logged in as: <strong className="text-foreground">{user?.name}</strong></span>
           <RoleBadge role={displayRole} isSuperAdmin={isSuperAdmin} />
-          {isSuperAdmin && (
+          {isAdmin && (
             <Button variant="outline" size="sm" onClick={() => setShowAuditLog(true)}>
               <History className="h-4 w-4 mr-1" />
               Audit Log
@@ -581,17 +581,17 @@ export default function SettingsPage() {
       <Card className="border-border">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base">Team Management</CardTitle>
-          {isSuperAdmin && (
+          {isAdmin && (
             <Button size="sm" onClick={() => setShowAddUser(true)}>
               Add User
             </Button>
           )}
         </CardHeader>
         <CardContent>
-          {!isSuperAdmin && (
+          {!isAdmin && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
               <Info className="h-3.5 w-3.5" />
-              ℹ️ Team management is restricted to Super Admin users.
+              ℹ️ Team management is restricted to Admin and Super Admin users.
             </div>
           )}
           <div className="overflow-x-auto rounded-md border border-border">
@@ -603,7 +603,7 @@ export default function SettingsPage() {
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Last Login</th>
-                  {isSuperAdmin && (
+                  {isAdmin && (
                     <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   )}
                 </tr>
@@ -633,7 +633,7 @@ export default function SettingsPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{fmtDate(m.lastLogin)}</td>
-                      {isSuperAdmin && (
+                      {isAdmin && (
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1">
                             <Button
