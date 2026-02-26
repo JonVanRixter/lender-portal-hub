@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { dealers as initialDealers } from "@/data/mockData";
@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { History, Trash2, Pencil, Info } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { History, Trash2, Pencil, Info, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,28 +29,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ─── Team mock data ───
 interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: "Admin" | "Risk Manager" | "Viewer";
+  role: "Admin" | "Risk Manager" | "Viewer" | "User";
+  isSuperAdmin: boolean;
   status: "Active" | "Invited";
   lastLogin: string;
 }
 
 const initialTeam: TeamMember[] = [
-  { id: "u1", name: "Sarah Mitchell", email: "s.mitchell@lender.com", role: "Admin", status: "Active", lastLogin: "2026-02-23T09:00:00Z" },
-  { id: "u2", name: "James Hart", email: "j.hart@lender.com", role: "Risk Manager", status: "Active", lastLogin: "2026-02-22T16:30:00Z" },
-  { id: "u3", name: "Emily Chen", email: "e.chen@lender.com", role: "Viewer", status: "Active", lastLogin: "2026-02-21T11:00:00Z" },
-  { id: "u4", name: "David Okonkwo", email: "d.okonkwo@lender.com", role: "Risk Manager", status: "Invited", lastLogin: "—" },
+  { id: "u1", name: "Sarah Jenkins", email: "s.jenkins@apexmotorfinance.co.uk", role: "Admin", isSuperAdmin: true, status: "Active", lastLogin: "2026-02-23T09:14:00" },
+  { id: "u2", name: "Mark Davies", email: "m.davies@apexmotorfinance.co.uk", role: "Admin", isSuperAdmin: false, status: "Active", lastLogin: "2026-02-20T14:30:00" },
+  { id: "u3", name: "Claire Foster", email: "c.foster@apexmotorfinance.co.uk", role: "User", isSuperAdmin: false, status: "Active", lastLogin: "2026-02-18T11:00:00" },
 ];
 
-const ROLE_PILL: Record<TeamMember["role"], string> = {
+const ROLE_PILL: Record<string, string> = {
   Admin: "bg-primary/15 text-primary",
   "Risk Manager": "bg-rag-amber/15 text-rag-amber",
   Viewer: "bg-muted text-muted-foreground",
+  User: "bg-muted text-muted-foreground",
+};
+
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  Admin: "Admin users can manage team members, configure notifications, and view all portfolio data.",
+  User: "Users have read-only access to the portfolio, alerts, and reports.",
 };
 
 function AuditLogPanel() {
@@ -99,12 +112,40 @@ function AuditLogPanel() {
   );
 }
 
+function RoleBadge({ role, isSuperAdmin }: { role: string; isSuperAdmin: boolean }) {
+  if (isSuperAdmin) {
+    return (
+      <Badge className="text-xs text-white border-0" style={{ backgroundColor: "#3d1468" }}>
+        Super Admin
+      </Badge>
+    );
+  }
+  if (role === "Admin") {
+    return (
+      <Badge className="text-xs text-white bg-foreground/80 border-0">
+        Admin
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-xs">
+      {role === "User" ? "User" : role}
+    </Badge>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  // Only Super Admin can edit settings
-  const isAdmin = user?.role === "Super Admin";
-  const displayRole = user?.role ?? "User";
+
+  // Team state
+  const [team, setTeam] = useState<TeamMember[]>(initialTeam);
+
+  // Determine if logged-in user is the Super Admin
+  const currentSuperAdmin = team.find((m) => m.isSuperAdmin);
+  const isSuperAdmin = user?.role === "Super Admin" ||
+    (user?.name === "Test User" && currentSuperAdmin?.email === "s.jenkins@apexmotorfinance.co.uk");
+  const displayRole = isSuperAdmin ? "Super Admin" : (user?.role ?? "User");
 
   // General
   const [contactEmail, setContactEmail] = useState("compliance@acmelending.com");
@@ -124,21 +165,26 @@ export default function SettingsPage() {
   const [origMaxAmberForGreen] = useState(1);
   const [origMaxRedForAmber] = useState(0);
 
-  // Team
-  const [team, setTeam] = useState<TeamMember[]>(initialTeam);
+  // Add user
   const [showAddUser, setShowAddUser] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState<TeamMember["role"]>("Viewer");
+  const [newRole, setNewRole] = useState<"Admin" | "User">("User");
   const [newStatus, setNewStatus] = useState<"Active" | "Invited">("Invited");
 
   // Edit user
   const [editUser, setEditUser] = useState<TeamMember | null>(null);
   const [editName, setEditName] = useState("");
-  const [editRole, setEditRole] = useState<TeamMember["role"]>("Viewer");
+  const [editRole, setEditRole] = useState<TeamMember["role"]>("User");
 
   // Remove user
   const [removeUser, setRemoveUser] = useState<TeamMember | null>(null);
+
+  // Transfer Super Admin
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState("");
+  const [transferEmailConfirm, setTransferEmailConfirm] = useState("");
+  const [transferBanner, setTransferBanner] = useState<string | null>(null);
 
   // Notifications
   const [emailNotif, setEmailNotif] = useState(true);
@@ -150,17 +196,22 @@ export default function SettingsPage() {
   // Audit log
   const [showAuditLog, setShowAuditLog] = useState(false);
 
+  const adminMembers = team.filter((m) => m.role === "Admin" && !m.isSuperAdmin);
+  const transferEligible = team.filter((m) => !m.isSuperAdmin);
+  const hasEligibleAdmins = adminMembers.length > 0;
+  const onlyOneUser = team.length <= 1;
+
   const handleThemeToggle = (checked: boolean) => {
     setDarkMode(checked);
     document.documentElement.classList.toggle("dark", checked);
   };
 
   const handleSaveGeneral = () => {
-    toast({ title: "Settings Saved", description: "General settings have been updated." });
+    toast({ title: "Settings Saved", description: "General settings have been updated.", duration: 4000 });
   };
 
   const handleSaveThresholds = () => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
 
     const userName = user?.name ?? "Unknown";
     const userRole = user?.role ?? "Unknown";
@@ -193,17 +244,19 @@ export default function SettingsPage() {
     toast({
       title: "Thresholds Updated",
       description: `RAG recalculated: ${greenCount} Green, ${amberCount} Amber, ${redCount} Red`,
+      duration: 4000,
     });
   };
 
   const handleAddUser = () => {
     if (!newEmail || !newName) return;
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
     const member: TeamMember = {
       id: `u-${Date.now()}`,
       name: newName,
       email: newEmail,
       role: newRole,
+      isSuperAdmin: false,
       status: newStatus,
       lastLogin: "Never",
     };
@@ -218,10 +271,10 @@ export default function SettingsPage() {
     });
     setNewName("");
     setNewEmail("");
-    setNewRole("Viewer");
+    setNewRole("User");
     setNewStatus("Invited");
     setShowAddUser(false);
-    toast({ title: "✉ Invite sent (POC only)", description: `${newName} has been added to the team.` });
+    toast({ title: "✉ Invite sent (POC only)", description: `${newName} has been added to the team.`, duration: 4000 });
   };
 
   const handleEditUser = () => {
@@ -240,7 +293,7 @@ export default function SettingsPage() {
       newValue: editRole,
     });
     setEditUser(null);
-    toast({ title: "User Updated", description: `${editName}'s role has been updated to ${editRole}.` });
+    toast({ title: "User Updated", description: `${editName}'s role has been updated to ${editRole}.`, duration: 4000 });
   };
 
   const handleRemoveUser = () => {
@@ -256,17 +309,47 @@ export default function SettingsPage() {
     });
     const name = removeUser.name;
     setRemoveUser(null);
-    toast({ title: "User Removed", description: `${name} has been removed from your team.` });
+    toast({ title: "User Removed", description: `${name} has been removed from your team.`, duration: 4000 });
+  };
+
+  const handleTransferSuperAdmin = () => {
+    const target = team.find((m) => m.id === transferTargetId);
+    if (!target) return;
+
+    setTeam((prev) =>
+      prev.map((m) => {
+        if (m.isSuperAdmin) return { ...m, isSuperAdmin: false };
+        if (m.id === transferTargetId) return { ...m, isSuperAdmin: true };
+        return m;
+      })
+    );
+
+    addAuditEntry({
+      user: user?.name ?? "Unknown",
+      role: "Super Admin",
+      action: "Transfer Super Admin",
+      field: "Super Admin",
+      oldValue: currentSuperAdmin?.name ?? "Unknown",
+      newValue: target.name,
+    });
+
+    setShowTransfer(false);
+    setTransferTargetId("");
+    setTransferEmailConfirm("");
+    setTransferBanner(`✅ Super Admin transferred to ${target.name}. Your access has been reduced to Admin. Refresh the page to see your updated permissions.`);
   };
 
   const handleSaveNotifications = () => {
-    toast({ title: "Preferences Saved", description: "Notification preferences updated." });
+    toast({ title: "Preferences Saved", description: "Notification preferences updated.", duration: 4000 });
   };
 
   const fmtDate = (iso: string) => {
     if (iso === "—" || iso === "Never") return iso;
     return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
+
+  const superAdminEmail = currentSuperAdmin?.email ?? "";
+  const transferEmailValid = transferEmailConfirm === superAdminEmail;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -277,10 +360,8 @@ export default function SettingsPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground hidden sm:inline">Logged in as: <strong className="text-foreground">{user?.name}</strong></span>
-          <Badge variant="outline" className="text-xs">
-            {displayRole}
-          </Badge>
-          {isAdmin && (
+          <RoleBadge role={displayRole} isSuperAdmin={isSuperAdmin} />
+          {isSuperAdmin && (
             <Button variant="outline" size="sm" onClick={() => setShowAuditLog(true)}>
               <History className="h-4 w-4 mr-1" />
               Audit Log
@@ -288,6 +369,14 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Transfer success banner */}
+      {transferBanner && (
+        <div className="rounded-md border border-rag-green/30 bg-rag-green/10 p-3 flex items-start justify-between gap-2">
+          <p className="text-sm text-foreground">{transferBanner}</p>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs shrink-0" onClick={() => setTransferBanner(null)}>✕</Button>
+        </div>
+      )}
 
       {/* ─── General ─── */}
       <Card className="border-border">
@@ -298,7 +387,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Organization Name</Label>
-              {isAdmin ? (
+              {isSuperAdmin ? (
                 <Input value="Acme Lending Ltd" readOnly className="bg-muted/50" />
               ) : (
                 <p className="text-sm text-foreground py-2">Acme Lending Ltd</p>
@@ -306,7 +395,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact-email">Primary Contact Email</Label>
-              {isAdmin ? (
+              {isSuperAdmin ? (
                 <Input
                   id="contact-email"
                   type="email"
@@ -324,7 +413,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-3">
               <Label>Date Format</Label>
-              {isAdmin ? (
+              {isSuperAdmin ? (
                 <div className="space-y-2">
                   {(["DD/MM/YYYY", "MM/DD/YYYY"] as const).map((fmt) => (
                     <label key={fmt} className="flex items-center gap-2 cursor-pointer">
@@ -353,7 +442,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {isAdmin && (
+          {isSuperAdmin && (
             <div className="flex justify-end">
               <Button onClick={handleSaveGeneral}>Save</Button>
             </div>
@@ -367,7 +456,7 @@ export default function SettingsPage() {
           <CardTitle className="text-base">RAG Threshold Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {!isAdmin ? (
+          {!isSuperAdmin ? (
             <>
               <div className="rounded-md border border-border bg-muted/30 p-3">
                 <p className="text-sm text-foreground">
@@ -384,7 +473,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Info className="h-3.5 w-3.5" />
-                ℹ️ Threshold configuration is managed by your Admin user.
+                ℹ️ RAG Threshold Configuration is managed by your Super Admin.
               </div>
             </>
           ) : (
@@ -478,7 +567,7 @@ export default function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Confirm Threshold Change</DialogTitle>
             <DialogDescription>
-              Changing thresholds will re-calculate all dealer RAG scores. This action will be recorded in the audit log. Continue?
+              <strong>Super Admin action:</strong> Changing thresholds will re-calculate all dealer RAG scores. This action will be recorded in the audit log. Continue?
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-2">
@@ -492,17 +581,17 @@ export default function SettingsPage() {
       <Card className="border-border">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base">Team Management</CardTitle>
-          {isAdmin && (
+          {isSuperAdmin && (
             <Button size="sm" onClick={() => setShowAddUser(true)}>
               Add User
             </Button>
           )}
         </CardHeader>
         <CardContent>
-          {!isAdmin && (
+          {!isSuperAdmin && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
               <Info className="h-3.5 w-3.5" />
-              ℹ️ Team management is restricted to Admin users.
+              ℹ️ Team management is restricted to Super Admin users.
             </div>
           )}
           <div className="overflow-x-auto rounded-md border border-border">
@@ -514,20 +603,29 @@ export default function SettingsPage() {
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Last Login</th>
-                  {isAdmin && (
+                  {isSuperAdmin && (
                     <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {team.map((m) => {
-                  const isSelf = m.email === user?.email || (user?.name === "Test User" && m.email === "s.mitchell@lender.com");
+                  const isSelf = m.isSuperAdmin && isSuperAdmin;
                   return (
                     <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
-                      <td className="px-3 py-2.5 font-medium text-foreground">{m.name}</td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          {m.name}
+                          {m.isSuperAdmin && (
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: "#3d1468" }}>
+                              Super Admin
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">{m.email}</td>
                       <td className="px-3 py-2.5">
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_PILL[m.role]}`}>{m.role}</span>
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_PILL[m.role] ?? ROLE_PILL.User}`}>{m.role}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${m.status === "Active" ? "bg-rag-green/15 text-rag-green" : "bg-rag-amber/15 text-rag-amber"}`}>
@@ -535,7 +633,7 @@ export default function SettingsPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{fmtDate(m.lastLogin)}</td>
-                      {isAdmin && (
+                      {isSuperAdmin && (
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1">
                             <Button
@@ -552,8 +650,32 @@ export default function SettingsPage() {
                               Edit
                             </Button>
                             {isSelf ? (
-                              <span className="text-xs text-muted-foreground px-2">(You)</span>
-                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 gap-1 text-xs"
+                                      disabled={onlyOneUser}
+                                      onClick={() => {
+                                        setShowTransfer(true);
+                                        setTransferTargetId("");
+                                        setTransferEmailConfirm("");
+                                      }}
+                                    >
+                                      <ShieldAlert className="h-3 w-3" />
+                                      Transfer Super Admin
+                                    </Button>
+                                  </TooltipTrigger>
+                                  {onlyOneUser && (
+                                    <TooltipContent>
+                                      Add another Admin user before transferring Super Admin.
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : m.isSuperAdmin ? null : (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -605,16 +727,16 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>Role *</Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as TeamMember["role"])}>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as "Admin" | "User")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Risk Manager">Risk Manager</SelectItem>
-                  <SelectItem value="Viewer">Viewer</SelectItem>
+                  <SelectItem value="User">User</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[newRole]}</p>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
@@ -670,8 +792,7 @@ export default function SettingsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Risk Manager">Risk Manager</SelectItem>
-                    <SelectItem value="Viewer">Viewer</SelectItem>
+                    <SelectItem value="User">User</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -697,6 +818,76 @@ export default function SettingsPage() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setRemoveUser(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleRemoveUser}>Remove User</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Super Admin modal */}
+      <Dialog open={showTransfer} onOpenChange={(v) => { if (!v) { setShowTransfer(false); setTransferTargetId(""); setTransferEmailConfirm(""); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" />
+              Transfer Super Admin Responsibility
+            </DialogTitle>
+            <DialogDescription>
+              You are the Super Admin for Apex Motor Finance Ltd.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2 text-sm text-foreground">
+              <p>Transferring this role will:</p>
+              <ul className="space-y-1 ml-1">
+                <li>✅ Grant the selected user full Super Admin access including RAG Threshold Configuration</li>
+                <li>⬇️ Reduce your own access to standard Admin</li>
+                <li>⚠️ This takes effect immediately and cannot be undone without the new Super Admin transferring it back</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Transfer to:</Label>
+              <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferEligible.map((m) => {
+                    const isAdmin = m.role === "Admin";
+                    return (
+                      <SelectItem key={m.id} value={m.id} disabled={!isAdmin}>
+                        <span className={!isAdmin ? "text-muted-foreground" : ""}>
+                          {m.name} ({m.role})
+                          {!isAdmin && " — Must be Admin role to receive Super Admin"}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {!hasEligibleAdmins && (
+                <p className="text-xs text-rag-amber">No eligible Admin users found. Promote a User to Admin first.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>To confirm, type your email address:</Label>
+              <Input
+                placeholder={superAdminEmail}
+                value={transferEmailConfirm}
+                onChange={(e) => setTransferEmailConfirm(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => { setShowTransfer(false); setTransferTargetId(""); setTransferEmailConfirm(""); }}>Cancel</Button>
+              <Button
+                variant="destructive"
+                disabled={!transferEmailValid || !transferTargetId || !hasEligibleAdmins}
+                onClick={handleTransferSuperAdmin}
+              >
+                Transfer Super Admin
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -751,7 +942,7 @@ export default function SettingsPage() {
               Settings Audit Log
             </DialogTitle>
             <DialogDescription>
-              Complete record of all configuration changes made by Admin users.
+              Complete record of all configuration changes made by Super Admin users.
             </DialogDescription>
           </DialogHeader>
           <AuditLogPanel />
