@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { documents as allDocuments } from "@/data/mockData";
 import { getControlAreasForSection } from "@/data/controlAreaData";
 import { RequestReAuditModal } from "./RequestReAuditModal";
+import { AuditReportModal } from "./AuditReportModal";
 import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange, DocStatus } from "@/types";
 
 const RAG_BADGE: Record<RagStatus, string> = {
@@ -77,6 +78,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [reAuditOpen, setReAuditOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   const dealerDocs = useMemo(
@@ -100,10 +102,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
   };
 
   const handleDownloadReport = () => {
-    toast({
-      title: "📥 Audit Report",
-      description: "Audit report PDF available in full MVP.",
-    });
+    setReportOpen(true);
   };
 
   const handleViewHistoricalReport = () => {
@@ -468,6 +467,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
         onClose={() => setReAuditOpen(false)}
         dealerName={dealer.tradingName}
       />
+      <AuditReportModal dealer={dealer} open={reportOpen} onOpenChange={setReportOpen} />
     </div>
   );
 }
