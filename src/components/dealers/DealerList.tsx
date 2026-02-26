@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,15 +23,43 @@ const PAGE_SIZE = 10;
 
 export function DealerList({ dealers }: { dealers: Dealer[] }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read query params for filtering from charts/alerts
+  const ragParam = searchParams.get("rag") as RagStatus | null;
+  const scoreMinParam = searchParams.get("scoreMin");
+  const scoreMaxParam = searchParams.get("scoreMax");
+  const hasQueryFilter = !!(ragParam || scoreMinParam || scoreMaxParam);
+
   const [search, setSearch] = useState("");
-  const [ragFilter, setRagFilter] = useState<RagStatus | "all">("all");
+  const [ragFilter, setRagFilter] = useState<RagStatus | "all">(
+    ragParam && ["Green", "Amber", "Red"].includes(ragParam) ? ragParam : "all"
+  );
   const [sortKey, setSortKey] = useState<SortKey>("overallScore");
   const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(0);
 
+  const scoreMin = scoreMinParam ? Number(scoreMinParam) : null;
+  const scoreMax = scoreMaxParam ? Number(scoreMaxParam) : null;
+
+  const getFilterDescription = () => {
+    if (ragParam) return `${ragParam} dealers only`;
+    if (scoreMin !== null && scoreMax !== null) return `Score ${scoreMin}–${scoreMax}`;
+    return "";
+  };
+
+  const clearFilters = () => {
+    setSearchParams({});
+    setRagFilter("all");
+    setPage(0);
+  };
+
   const filtered = useMemo(() => {
     let list = dealers;
     if (ragFilter !== "all") list = list.filter((d) => d.ragStatus === ragFilter);
+    if (scoreMin !== null && scoreMax !== null) {
+      list = list.filter((d) => d.overallScore >= scoreMin && d.overallScore <= scoreMax);
+    }
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -47,7 +75,7 @@ export function DealerList({ dealers }: { dealers: Dealer[] }) {
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [dealers, ragFilter, search, sortKey, sortAsc]);
+  }, [dealers, ragFilter, search, sortKey, sortAsc, scoreMin, scoreMax]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -74,6 +102,19 @@ export function DealerList({ dealers }: { dealers: Dealer[] }) {
         <h1 className="text-2xl font-bold text-foreground">Dealer Directory</h1>
         <p className="text-sm text-muted-foreground">Portfolio compliance overview</p>
       </div>
+
+      {/* Active filter banner */}
+      {hasQueryFilter && (
+        <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2.5">
+          <span className="text-sm text-foreground">
+            🔍 Filtered view: <strong>{getFilterDescription()}</strong>
+          </span>
+          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={clearFilters}>
+            <X className="h-3.5 w-3.5" />
+            Clear filter
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">

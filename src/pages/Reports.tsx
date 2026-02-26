@@ -34,13 +34,10 @@ const SECTION_NAMES = [
   "Website & Marketing",
 ];
 
-function handleDownloadPdf() {
-  toast({ title: "PDF Export", description: "PDF export available in full MVP." });
-}
-
 // ─── Portfolio Summary Components ───
 
 function PortfolioHealthCard() {
+  const navigate = useNavigate();
   const ragCounts = useMemo(() => {
     const c: Record<RagStatus, number> = { Green: 0, Amber: 0, Red: 0 };
     dealers.forEach((d) => c[d.ragStatus]++);
@@ -53,6 +50,11 @@ function PortfolioHealthCard() {
     { name: "Red", value: ragCounts.Red },
   ].filter((d) => d.value > 0);
 
+  const handlePieClick = (_: unknown, index: number) => {
+    const rag = data[index]?.name;
+    if (rag) navigate(`/dealers?rag=${rag}`);
+  };
+
   return (
     <Card className="border-border">
       <CardHeader className="pb-2">
@@ -61,12 +63,25 @@ function PortfolioHealthCard() {
       <CardContent className="flex flex-col items-center">
         <ResponsiveContainer width="100%" height={180}>
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" stroke="hsl(0,0%,100%)" strokeWidth={3}>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={75}
+              dataKey="value"
+              stroke="hsl(0,0%,100%)"
+              strokeWidth={3}
+              onClick={handlePieClick}
+              cursor="pointer"
+            >
               {data.map((e) => (
                 <Cell key={e.name} fill={RAG_COLORS[e.name as RagStatus]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip
+              formatter={(value: number, name: string) => [`${value} dealer${value !== 1 ? "s" : ""}`, `View ${name} dealers →`]}
+            />
           </PieChart>
         </ResponsiveContainer>
         <p className="text-sm text-muted-foreground mt-2">
@@ -78,54 +93,51 @@ function PortfolioHealthCard() {
 }
 
 function ScoreDistributionCard() {
+  const navigate = useNavigate();
   const bands = useMemo(() => {
     const b = [
-      { range: "0–24", count: 0, fill: RAG_COLORS.Red, dealers: [] as Dealer[] },
-      { range: "25–49", count: 0, fill: RAG_COLORS.Red, dealers: [] as Dealer[] },
-      { range: "50–74", count: 0, fill: RAG_COLORS.Amber, dealers: [] as Dealer[] },
-      { range: "75–100", count: 0, fill: RAG_COLORS.Green, dealers: [] as Dealer[] },
+      { range: "0–24", count: 0, fill: RAG_COLORS.Red, min: 0, max: 24 },
+      { range: "25–49", count: 0, fill: RAG_COLORS.Red, min: 25, max: 49 },
+      { range: "50–74", count: 0, fill: RAG_COLORS.Amber, min: 50, max: 74 },
+      { range: "75–100", count: 0, fill: RAG_COLORS.Green, min: 75, max: 100 },
     ];
     dealers.forEach((d) => {
       const idx = d.overallScore < 25 ? 0 : d.overallScore < 50 ? 1 : d.overallScore < 75 ? 2 : 3;
       b[idx].count++;
-      b[idx].dealers.push(d);
     });
     return b;
   }, []);
+
+  const handleBarClick = (data: { min: number; max: number }) => {
+    navigate(`/dealers?scoreMin=${data.min}&scoreMax=${data.max}`);
+  };
 
   return (
     <Card className="border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Score Distribution</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={bands}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(240,6%,88%)" />
             <XAxis dataKey="range" tick={{ fontSize: 12 }} />
             <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Bar dataKey="count" name="Dealers">
+            <Tooltip
+              formatter={(value: number) => [`${value} dealer${value !== 1 ? "s" : ""}`, "Click to view →"]}
+            />
+            <Bar
+              dataKey="count"
+              name="Dealers"
+              cursor="pointer"
+              onClick={(data) => handleBarClick(data)}
+            >
               {bands.map((b, i) => (
                 <Cell key={i} fill={b.fill} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-        <div className="space-y-2">
-          {bands.filter((b) => b.count > 0).map((b) => (
-            <div key={b.range} className="flex items-start gap-2 text-xs">
-              <span className="inline-block rounded px-1.5 py-0.5 font-semibold text-white shrink-0" style={{ backgroundColor: b.fill }}>{b.range}</span>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                {b.dealers.map((d) => (
-                  <button key={d.id} onClick={() => window.location.href = `/dealers/${d.id}`} className="text-primary hover:underline cursor-pointer">
-                    {d.tradingName} ({d.overallScore})
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </CardContent>
     </Card>
   );
@@ -291,7 +303,7 @@ function DocExpirySummaryCard() {
                 status === "Expiring Soon" ? "bg-rag-amber/15 text-rag-amber" :
                 "bg-rag-red/15 text-rag-red"
               }`}>{status}</span>
-              <button onClick={() => window.location.href = `/documents`} className="text-lg font-bold text-primary hover:underline cursor-pointer">{counts[status]}</button>
+              <button onClick={() => window.location.href = `/documents?status=${encodeURIComponent(status)}`} className="text-lg font-bold text-primary hover:underline cursor-pointer">{counts[status]}</button>
             </div>
           ))}
         </div>
@@ -357,6 +369,73 @@ function AlertsSummaryCard() {
   );
 }
 
+// ─── Portfolio Download ───
+
+function generatePortfolioReport() {
+  const now = new Date();
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  const avgScore = (dealers.reduce((s, d) => s + d.overallScore, 0) / dealers.length).toFixed(1);
+  const ragCounts = { Green: 0, Amber: 0, Red: 0 } as Record<RagStatus, number>;
+  dealers.forEach((d) => ragCounts[d.ragStatus]++);
+
+  const sortedDealers = [...dealers].sort((a, b) => b.overallScore - a.overallScore);
+  const dealerLines = sortedDealers.map((d) => {
+    const name = d.tradingName.padEnd(24);
+    const score = String(d.overallScore).padEnd(8);
+    const rag = d.ragStatus.padEnd(9);
+    const audit = fmtDate(d.lastAuditDate);
+    return `${name}${score}${rag}${audit}`;
+  }).join("\n");
+
+  const pendingThreshold = initialAlerts
+    .filter((a) => a.status === "Pending" && a.type === "Threshold Breach")
+    .map((a) => {
+      const dName = dealers.find((d) => d.id === a.dealerId)?.tradingName ?? "Unknown";
+      return `- ${dName}: ${a.message}`;
+    }).join("\n") || "- None";
+
+  const docCounts = { Valid: 0, "Expiring Soon": 0, Expired: 0 };
+  documents.forEach((d) => {
+    if (d.status === "Valid") docCounts.Valid++;
+    else if (d.status === "Expiring Soon") docCounts["Expiring Soon"]++;
+    else docCounts.Expired++;
+  });
+
+  return `DEALERGUARD — PORTFOLIO SUMMARY REPORT
+Generated: ${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+Lender: Apex Motor Finance Ltd
+────────────────────────────────────────
+
+PORTFOLIO OVERVIEW
+Total Dealers:          ${dealers.length}
+Average Score:          ${avgScore}
+Green (Compliant):      ${ragCounts.Green} dealers
+Amber (Attention):      ${ragCounts.Amber} dealers
+Red (Critical):         ${ragCounts.Red} dealers
+
+DEALER LIST
+────────────────────────────────────────
+${"Dealer Name".padEnd(24)}${"Score".padEnd(8)}${"RAG".padEnd(9)}Last Audit
+${dealerLines}
+
+CRITICAL ALERTS (PENDING)
+────────────────────────────────────────
+${pendingThreshold}
+
+EXPIRING DOCUMENTS SUMMARY
+────────────────────────────────────────
+Valid:          ${docCounts.Valid}
+Expiring Soon:  ${docCounts["Expiring Soon"]}
+Expired:        ${docCounts.Expired}
+
+────────────────────────────────────────
+Report generated by DealerGuard
+The Compliance Guys Ltd · compliance@thecomplianceguys.co.uk
+`;
+}
+
 // ─── Individual Dealer Report ───
 
 function DealerReport({ dealer }: { dealer: Dealer }) {
@@ -365,6 +444,10 @@ function DealerReport({ dealer }: { dealer: Dealer }) {
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  const handleDownloadPdf = () => {
+    toast({ title: "PDF Export", description: "PDF export available in full MVP." });
+  };
 
   return (
     <div className="space-y-4">
@@ -571,11 +654,30 @@ function DealerReport({ dealer }: { dealer: Dealer }) {
 export default function Reports() {
   const [selectedDealerId, setSelectedDealerId] = useState<string | null>(null);
   const selectedDealer = selectedDealerId ? dealers.find((d) => d.id === selectedDealerId) : null;
+  const [downloading, setDownloading] = useState(false);
 
   const avgScore = useMemo(
     () => (dealers.reduce((sum, d) => sum + d.overallScore, 0) / dealers.length).toFixed(1),
     []
   );
+
+  const handleDownloadPortfolio = () => {
+    setDownloading(true);
+    setTimeout(() => {
+      const content = generatePortfolioReport();
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DealerGuard_Portfolio_Report_${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDownloading(false);
+      toast({ title: "✅ Portfolio report downloaded." });
+    }, 800);
+  };
 
   return (
     <div className="space-y-8">
@@ -607,8 +709,9 @@ export default function Reports() {
             <h1 className="text-2xl font-bold text-foreground">Portfolio Summary Report</h1>
             <p className="text-sm text-muted-foreground">Average risk score: {avgScore} across {dealers.length} dealers</p>
           </div>
-          <Button variant="outline" onClick={handleDownloadPdf} className="gap-2">
-            <FileDown className="h-4 w-4" /> Download PDF
+          <Button variant="outline" onClick={handleDownloadPortfolio} disabled={downloading} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            {downloading ? "⏳ Generating..." : "📥 Download Portfolio Report"}
           </Button>
         </div>
 

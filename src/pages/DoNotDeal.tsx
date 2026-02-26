@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, ChevronLeft, ChevronRight, ShieldBan, AlertTriangle } from "lucide-react";
-import { doNotDealEntries as initialEntries } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, Plus, ChevronLeft, ChevronRight, ShieldBan, AlertTriangle, Info } from "lucide-react";
+import { doNotDealEntries as initialEntries, dealers } from "@/data/mockData";
 import type { DoNotDealEntry, DndEntityType, DndReason } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,15 +32,35 @@ const REASON_PILL: Record<DndReason, string> = {
   Other: "bg-muted text-muted-foreground",
 };
 
+const TYPE_ICON: Record<DndEntityType, string> = {
+  Dealer: "🏢",
+  Director: "👤",
+};
+
 const TYPE_PILL: Record<DndEntityType, string> = {
   Dealer: "bg-primary/15 text-primary",
   Director: "bg-rag-amber/15 text-rag-amber",
 };
 
+const COMPLIANCE_SECTIONS = [
+  "Legal Status",
+  "FCA Authorization",
+  "Financial Risk",
+  "KYC & AML",
+  "DBS Compliance",
+  "Training & Competence",
+  "Complaints Handling",
+  "Website & Marketing",
+];
+
+// Platform DND mock
+const PLATFORM_DND_ENTITIES = ["Falcon Motor Finance Ltd", "Gregory P. Walsh"];
+
 const PAGE_SIZE = 5;
 
 export default function DoNotDeal() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [entries, setEntries] = useState<DoNotDealEntry[]>(initialEntries);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -51,6 +73,8 @@ export default function DoNotDeal() {
   const [newCH, setNewCH] = useState("");
   const [newReason, setNewReason] = useState<DndReason | "">("");
   const [newNotes, setNewNotes] = useState("");
+  const [newFailedChecks, setNewFailedChecks] = useState<string[]>([]);
+  const [notesError, setNotesError] = useState("");
 
   const filtered = search
     ? entries.filter((e) =>
@@ -73,20 +97,44 @@ export default function DoNotDeal() {
     setNewCH("");
     setNewReason("");
     setNewNotes("");
+    setNewFailedChecks([]);
+    setNotesError("");
   };
+
+  const toggleCheck = (check: string) => {
+    setNewFailedChecks((prev) =>
+      prev.includes(check) ? prev.filter((c) => c !== check) : [...prev, check]
+    );
+  };
+
+  // Cross-check: match CH number against active dealers
+  const matchedDealer = useMemo(() => {
+    if (!newCH || newType !== "Dealer") return null;
+    return dealers.find((d) => d.companiesHouseNumber === newCH);
+  }, [newCH, newType]);
+
+  // Cross-check: match entity name against platform DND
+  const isOnPlatformDnd = useMemo(() => {
+    if (!newName) return false;
+    return PLATFORM_DND_ENTITIES.some((e) => e.toLowerCase() === newName.toLowerCase());
+  }, [newName]);
 
   const handleAdd = () => {
     if (!newName || !newReason || !newNotes) return;
+    if (newNotes.length < 20) {
+      setNotesError("Notes must be at least 20 characters.");
+      return;
+    }
     const entry: DoNotDealEntry = {
       id: `dnd-${Date.now()}`,
       entityName: newName,
       entityType: newType,
-      companiesHouseNumber: newCH || null,
+      companiesHouseNumber: newType === "Dealer" && newCH ? newCH : null,
       reason: newReason as DndReason,
       notes: newNotes,
       dateAdded: new Date().toISOString().slice(0, 10),
-      addedBy: "Test User",
-      failedChecks: [],
+      addedBy: user?.name ?? "Test User",
+      failedChecks: newFailedChecks,
     };
     setEntries((prev) => [entry, ...prev]);
     setShowAdd(false);
@@ -98,7 +146,16 @@ export default function DoNotDeal() {
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-  const canSubmit = !!newName && !!newReason && !!newNotes;
+  const canSubmit = !!newName && !!newReason && !!newNotes && newNotes.length >= 20;
+
+  // Cross-checks for display
+  const getEntryMatchedDealer = (e: DoNotDealEntry) => {
+    if (!e.companiesHouseNumber || e.entityType !== "Dealer") return null;
+    return dealers.find((d) => d.companiesHouseNumber === e.companiesHouseNumber);
+  };
+
+  const isEntryOnPlatformDnd = (e: DoNotDealEntry) =>
+    PLATFORM_DND_ENTITIES.some((p) => p.toLowerCase() === e.entityName.toLowerCase());
 
   return (
     <div className="space-y-6" data-tour="dnd-table">
@@ -132,7 +189,10 @@ export default function DoNotDeal() {
             <p className="text-muted-foreground">No entries found.</p>
           </div>
         ) : (
-          paginated.map((e) => (
+          paginated.map((e) => {
+            const matched = getEntryMatchedDealer(e);
+            const onPlatform = isEntryOnPlatformDnd(e);
+            return (
             <div
               key={e.id}
               className="rounded-md border border-border bg-card hover:border-rag-red/30 transition-colors cursor-pointer"
@@ -147,7 +207,7 @@ export default function DoNotDeal() {
                     <p className="font-semibold text-foreground">{e.entityName}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${TYPE_PILL[e.entityType]}`}>
-                        {e.entityType}
+                        {TYPE_ICON[e.entityType]} {e.entityType}
                       </span>
                       {e.companiesHouseNumber && (
                         <span className="text-xs text-muted-foreground">CH: {e.companiesHouseNumber}</span>
@@ -163,6 +223,24 @@ export default function DoNotDeal() {
                 </div>
               </div>
 
+              {/* Cross-check banners */}
+              {(matched || onPlatform) && (
+                <div className="px-4 space-y-1.5 pb-2">
+                  {matched && (
+                    <div className="flex items-center gap-2 rounded-md border border-rag-amber/30 bg-rag-amber/5 px-3 py-2 text-xs text-foreground">
+                      <AlertTriangle className="h-3.5 w-3.5 text-rag-amber shrink-0" />
+                      ⚠️ This entity is currently in your active portfolio as <strong>{matched.tradingName}</strong>.
+                    </div>
+                  )}
+                  {onPlatform && (
+                    <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                      <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                      ℹ️ This entity is also on the TCG Platform-Wide Do Not Deal list.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {expanded === e.id && (
                 <div className="border-t border-border px-4 py-3 space-y-3 bg-muted/30">
                   <div>
@@ -175,7 +253,7 @@ export default function DoNotDeal() {
                       <div className="flex flex-wrap gap-1.5">
                         {e.failedChecks.map((c) => (
                           <Badge key={c} variant="outline" className="text-xs border-rag-red/30 text-rag-red">
-                            {c}
+                            ● {c}
                           </Badge>
                         ))}
                       </div>
@@ -188,7 +266,8 @@ export default function DoNotDeal() {
                 </div>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -208,57 +287,97 @@ export default function DoNotDeal() {
 
       {/* Add to DND modal */}
       <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add to Do Not Deal List</DialogTitle>
             <DialogDescription>Flag an entity as restricted. This will be visible to all portal users.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Entity Type</Label>
-                <Select value={newType} onValueChange={(v) => setNewType(v as DndEntityType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Dealer">Dealer</SelectItem>
-                    <SelectItem value="Director">Director</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="entity-name">Entity Name</Label>
-                <Input id="entity-name" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            {/* Entity Type */}
+            <div className="space-y-2">
+              <Label>Entity Type *</Label>
+              <div className="flex gap-4">
+                {(["Dealer", "Director"] as DndEntityType[]).map((t) => (
+                  <label key={t} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="entityType"
+                      checked={newType === t}
+                      onChange={() => { setNewType(t); if (t === "Director") setNewCH(""); }}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="text-sm text-foreground">{TYPE_ICON[t]} {t}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ch-number">Companies House Number (optional)</Label>
-                <Input id="ch-number" placeholder="e.g. 12345678" value={newCH} onChange={(e) => setNewCH(e.target.value)} />
+                <Label htmlFor="entity-name">Entity Name *</Label>
+                <Input id="entity-name" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <Select value={newReason} onValueChange={(v) => setNewReason(v as DndReason)}>
-                  <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Fraudulent activity">Fraudulent activity</SelectItem>
-                    <SelectItem value="Failed compliance checks">Failed compliance checks</SelectItem>
-                    <SelectItem value="Non-payment">Non-payment</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+              {newType === "Dealer" && (
+                <div className="space-y-2">
+                  <Label htmlFor="ch-number">Companies House No.</Label>
+                  <Input id="ch-number" placeholder="e.g. 12345678" value={newCH} onChange={(e) => setNewCH(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            {/* Cross-check banners in modal */}
+            {matchedDealer && (
+              <div className="flex items-center gap-2 rounded-md border border-rag-amber/30 bg-rag-amber/5 px-3 py-2 text-xs text-foreground">
+                <AlertTriangle className="h-3.5 w-3.5 text-rag-amber shrink-0" />
+                ⚠️ This entity is currently in your active portfolio as <strong>{matchedDealer.tradingName}</strong>.
               </div>
+            )}
+            {isOnPlatformDnd && (
+              <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                ℹ️ This entity is also on the TCG Platform-Wide Do Not Deal list.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Reason *</Label>
+              <Select value={newReason} onValueChange={(v) => setNewReason(v as DndReason)}>
+                <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Failed compliance checks">Failed compliance checks</SelectItem>
+                  <SelectItem value="Fraudulent activity">Fraudulent activity</SelectItem>
+                  <SelectItem value="Non-payment">Non-payment</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dnd-notes">Notes (required)</Label>
+              <Label htmlFor="dnd-notes">Notes * <span className="text-xs text-muted-foreground">(min. 20 characters)</span></Label>
               <Textarea
                 id="dnd-notes"
                 placeholder="Provide details about why this entity is being added…"
                 value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
+                onChange={(e) => { setNewNotes(e.target.value); if (e.target.value.length >= 20) setNotesError(""); }}
                 rows={3}
               />
+              {notesError && <p className="text-xs text-rag-red">{notesError}</p>}
+              <p className="text-xs text-muted-foreground">{newNotes.length}/20 minimum characters</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Failed Checks</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {COMPLIANCE_SECTIONS.map((section) => (
+                  <label key={section} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={newFailedChecks.includes(section)}
+                      onCheckedChange={() => toggleCheck(section)}
+                    />
+                    <span className="text-sm text-foreground">{section}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

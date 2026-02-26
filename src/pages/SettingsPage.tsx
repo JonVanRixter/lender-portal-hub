@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Lock, History } from "lucide-react";
+import { History, Trash2, Pencil, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -51,17 +51,6 @@ const ROLE_PILL: Record<TeamMember["role"], string> = {
   "Risk Manager": "bg-rag-amber/15 text-rag-amber",
   Viewer: "bg-muted text-muted-foreground",
 };
-
-function LockedOverlay({ message }: { message: string }) {
-  return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center gap-2 rounded-md border border-border bg-card px-4 py-3 shadow-sm">
-        <Lock className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">{message}</span>
-      </div>
-    </div>
-  );
-}
 
 function AuditLogPanel() {
   const [entries] = useState<AuditEntry[]>(() => getAuditLog());
@@ -113,7 +102,9 @@ function AuditLogPanel() {
 export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "Super Admin";
+  // Map roles: "Super Admin" → Admin-level access for settings
+  const isAdmin = user?.role === "Super Admin" || user?.role === "Admin";
+  const displayRole = user?.role === "Super Admin" ? "Admin" : user?.role ?? "User";
 
   // General
   const [contactEmail, setContactEmail] = useState("compliance@acmelending.com");
@@ -136,8 +127,18 @@ export default function SettingsPage() {
   // Team
   const [team, setTeam] = useState<TeamMember[]>(initialTeam);
   const [showAddUser, setShowAddUser] = useState(false);
+  const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<TeamMember["role"]>("Viewer");
+  const [newStatus, setNewStatus] = useState<"Active" | "Invited">("Invited");
+
+  // Edit user
+  const [editUser, setEditUser] = useState<TeamMember | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState<TeamMember["role"]>("Viewer");
+
+  // Remove user
+  const [removeUser, setRemoveUser] = useState<TeamMember | null>(null);
 
   // Notifications
   const [emailNotif, setEmailNotif] = useState(true);
@@ -154,10 +155,13 @@ export default function SettingsPage() {
     document.documentElement.classList.toggle("dark", checked);
   };
 
-  const handleSaveThresholds = () => {
-    if (!isSuperAdmin) return;
+  const handleSaveGeneral = () => {
+    toast({ title: "Settings Saved", description: "General settings have been updated." });
+  };
 
-    // Audit each changed field
+  const handleSaveThresholds = () => {
+    if (!isAdmin) return;
+
     const userName = user?.name ?? "Unknown";
     const userRole = user?.role ?? "Unknown";
 
@@ -174,7 +178,6 @@ export default function SettingsPage() {
       addAuditEntry({ user: userName, role: userRole, action: "Update Threshold", field: "Max Red for Amber", oldValue: String(origMaxRedForAmber), newValue: String(maxRedForAmber) });
     }
 
-    // POC: recompute RAG statuses
     const recomputed = initialDealers.map((d) => {
       let ragStatus: RagStatus = "Red";
       if (d.overallScore >= greenMin) ragStatus = "Green";
@@ -194,15 +197,15 @@ export default function SettingsPage() {
   };
 
   const handleAddUser = () => {
-    if (!newEmail) return;
-    if (!isSuperAdmin) return;
+    if (!newEmail || !newName) return;
+    if (!isAdmin) return;
     const member: TeamMember = {
       id: `u-${Date.now()}`,
-      name: newEmail.split("@")[0],
+      name: newName,
       email: newEmail,
       role: newRole,
-      status: "Invited",
-      lastLogin: "—",
+      status: newStatus,
+      lastLogin: "Never",
     };
     setTeam((prev) => [...prev, member]);
     addAuditEntry({
@@ -213,10 +216,47 @@ export default function SettingsPage() {
       oldValue: "—",
       newValue: `${newEmail} (${newRole})`,
     });
+    setNewName("");
     setNewEmail("");
     setNewRole("Viewer");
+    setNewStatus("Invited");
     setShowAddUser(false);
-    toast({ title: "User Invited", description: `Invitation sent to ${newEmail}` });
+    toast({ title: "✉ Invite sent (POC only)", description: `${newName} has been added to the team.` });
+  };
+
+  const handleEditUser = () => {
+    if (!editUser) return;
+    setTeam((prev) =>
+      prev.map((m) =>
+        m.id === editUser.id ? { ...m, name: editName, role: editRole } : m
+      )
+    );
+    addAuditEntry({
+      user: user?.name ?? "Unknown",
+      role: user?.role ?? "Unknown",
+      action: "Edit Team Member",
+      field: "Role",
+      oldValue: editUser.role,
+      newValue: editRole,
+    });
+    setEditUser(null);
+    toast({ title: "User Updated", description: `${editName}'s role has been updated to ${editRole}.` });
+  };
+
+  const handleRemoveUser = () => {
+    if (!removeUser) return;
+    setTeam((prev) => prev.filter((m) => m.id !== removeUser.id));
+    addAuditEntry({
+      user: user?.name ?? "Unknown",
+      role: user?.role ?? "Unknown",
+      action: "Remove Team Member",
+      field: "Team",
+      oldValue: `${removeUser.name} (${removeUser.role})`,
+      newValue: "Removed",
+    });
+    const name = removeUser.name;
+    setRemoveUser(null);
+    toast({ title: "User Removed", description: `${name} has been removed from your team.` });
   };
 
   const handleSaveNotifications = () => {
@@ -224,7 +264,7 @@ export default function SettingsPage() {
   };
 
   const fmtDate = (iso: string) => {
-    if (iso === "—") return "—";
+    if (iso === "—" || iso === "Never") return iso;
     return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
 
@@ -236,10 +276,11 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground">Configure portal preferences and team access</p>
         </div>
         <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground hidden sm:inline">Logged in as: <strong className="text-foreground">{user?.name}</strong></span>
           <Badge variant="outline" className="text-xs">
-            Role: {user?.role}
+            {displayRole}
           </Badge>
-          {isSuperAdmin && (
+          {isAdmin && (
             <Button variant="outline" size="sm" onClick={() => setShowAuditLog(true)}>
               <History className="h-4 w-4 mr-1" />
               Audit Log
@@ -257,16 +298,24 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Organization Name</Label>
-              <Input value="Acme Lending Ltd" readOnly className="bg-muted/50" />
+              {isAdmin ? (
+                <Input value="Acme Lending Ltd" readOnly className="bg-muted/50" />
+              ) : (
+                <p className="text-sm text-foreground py-2">Acme Lending Ltd</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact-email">Primary Contact Email</Label>
-              <Input
-                id="contact-email"
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-              />
+              {isAdmin ? (
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm text-foreground py-2">{contactEmail}</p>
+              )}
             </div>
           </div>
 
@@ -275,20 +324,24 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-3">
               <Label>Date Format</Label>
-              <div className="space-y-2">
-                {(["DD/MM/YYYY", "MM/DD/YYYY"] as const).map((fmt) => (
-                  <label key={fmt} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="dateFormat"
-                      checked={dateFormat === fmt}
-                      onChange={() => setDateFormat(fmt)}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    <span className="text-sm text-foreground">{fmt}</span>
-                  </label>
-                ))}
-              </div>
+              {isAdmin ? (
+                <div className="space-y-2">
+                  {(["DD/MM/YYYY", "MM/DD/YYYY"] as const).map((fmt) => (
+                    <label key={fmt} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dateFormat"
+                        checked={dateFormat === fmt}
+                        onChange={() => setDateFormat(fmt)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="text-sm text-foreground">{fmt}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-foreground py-2">{dateFormat}</p>
+              )}
             </div>
             <div className="space-y-3">
               <Label>Theme</Label>
@@ -299,101 +352,123 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="flex justify-end">
+              <Button onClick={handleSaveGeneral}>Save</Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* ─── RAG Thresholds (Super Admin only) ─── */}
-      <Card className="border-border relative" data-tour="rag-thresholds">
-        {!isSuperAdmin && <LockedOverlay message="Super Admin access required to modify thresholds" />}
+      {/* ─── RAG Thresholds ─── */}
+      <Card className="border-border" data-tour="rag-thresholds">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">RAG Threshold Configuration</CardTitle>
-            {!isSuperAdmin && <Lock className="h-4 w-4 text-muted-foreground" />}
-          </div>
+          <CardTitle className="text-base">RAG Threshold Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Green: Score ≥</Label>
-                <span className="text-sm font-bold text-rag-green">{greenMin}</span>
+          {!isAdmin ? (
+            <>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-sm text-foreground">
+                  <span className="text-rag-green font-medium">Green: ≥ {greenMin}</span>
+                  {" · "}
+                  <span className="text-rag-amber font-medium">Amber: {amberMin}–{greenMin - 1}</span>
+                  {" · "}
+                  <span className="text-rag-red font-medium">Red: {"< "}{amberMin}</span>
+                </p>
               </div>
-              <Slider
-                value={[greenMin]}
-                onValueChange={([v]) => {
-                  setGreenMin(v);
-                  if (v <= amberMin) setAmberMin(Math.max(0, v - 1));
-                }}
-                min={0}
-                max={100}
-                step={1}
-                disabled={!isSuperAdmin}
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Amber: Score ≥</Label>
-                <span className="text-sm font-bold text-rag-amber">{amberMin}</span>
+              <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">Max Amber sections for overall Green: <strong className="text-foreground">{maxAmberForGreen}</strong></p>
+                <p className="text-sm text-muted-foreground">Max Red sections for overall Amber: <strong className="text-foreground">{maxRedForAmber}</strong></p>
               </div>
-              <Slider
-                value={[amberMin]}
-                onValueChange={([v]) => {
-                  setAmberMin(v);
-                  if (v >= greenMin) setGreenMin(Math.min(100, v + 1));
-                }}
-                min={0}
-                max={100}
-                step={1}
-                disabled={!isSuperAdmin}
-              />
-            </div>
-          </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5" />
+                ℹ️ Threshold configuration is managed by your Admin user.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Green: Score ≥</Label>
+                    <span className="text-sm font-bold text-rag-green">{greenMin}</span>
+                  </div>
+                  <Slider
+                    value={[greenMin]}
+                    onValueChange={([v]) => {
+                      setGreenMin(v);
+                      if (v <= amberMin) setAmberMin(Math.max(0, v - 1));
+                    }}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Amber: Score ≥</Label>
+                    <span className="text-sm font-bold text-rag-amber">{amberMin}</span>
+                  </div>
+                  <Slider
+                    value={[amberMin]}
+                    onValueChange={([v]) => {
+                      setAmberMin(v);
+                      if (v >= greenMin) setGreenMin(Math.min(100, v + 1));
+                    }}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+              </div>
 
-          <div className="rounded-md border border-border bg-muted/30 p-3">
-            <p className="text-xs text-muted-foreground mb-1">Current breakdown:</p>
-            <p className="text-sm text-foreground">
-              <span className="text-rag-green font-medium">Green ≥ {greenMin}</span>
-              {" · "}
-              <span className="text-rag-amber font-medium">{amberMin}–{greenMin - 1} Amber</span>
-              {" · "}
-              <span className="text-rag-red font-medium">{"< "}{amberMin} Red</span>
-            </p>
-          </div>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground mb-1">Current breakdown:</p>
+                <p className="text-sm text-foreground">
+                  <span className="text-rag-green font-medium">Green ≥ {greenMin}</span>
+                  {" · "}
+                  <span className="text-rag-amber font-medium">{amberMin}–{greenMin - 1} Amber</span>
+                  {" · "}
+                  <span className="text-rag-red font-medium">{"< "}{amberMin} Red</span>
+                </p>
+              </div>
 
-          <Separator />
+              <Separator />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Max Amber sections for overall Green</Label>
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                value={maxAmberForGreen}
-                onChange={(e) => setMaxAmberForGreen(Number(e.target.value))}
-                className="w-24"
-                disabled={!isSuperAdmin}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Max Red sections for overall Amber</Label>
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                value={maxRedForAmber}
-                onChange={(e) => setMaxRedForAmber(Number(e.target.value))}
-                className="w-24"
-                disabled={!isSuperAdmin}
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Max Amber sections for overall Green</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={maxAmberForGreen}
+                    onChange={(e) => setMaxAmberForGreen(Number(e.target.value))}
+                    className="w-24"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Red sections for overall Amber</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={maxRedForAmber}
+                    onChange={(e) => setMaxRedForAmber(Number(e.target.value))}
+                    className="w-24"
+                  />
+                </div>
+              </div>
 
-          <div className="flex justify-end">
-            <Button onClick={() => setShowThresholdConfirm(true)} disabled={!isSuperAdmin}>
-              Save Thresholds
-            </Button>
-          </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setShowThresholdConfirm(true)}>
+                  Save Thresholds
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -413,16 +488,23 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Team Management (Super Admin only for adding) ─── */}
+      {/* ─── Team Management ─── */}
       <Card className="border-border">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base">Team Management</CardTitle>
-          <Button size="sm" onClick={() => setShowAddUser(true)} disabled={!isSuperAdmin}>
-            {!isSuperAdmin && <Lock className="h-3 w-3 mr-1" />}
-            Add User
-          </Button>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setShowAddUser(true)}>
+              Add User
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
+          {!isAdmin && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+              <Info className="h-3.5 w-3.5" />
+              ℹ️ Team management is restricted to Admin users.
+            </div>
+          )}
           <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full text-sm">
               <thead>
@@ -432,24 +514,62 @@ export default function SettingsPage() {
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Last Login</th>
+                  {isAdmin && (
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {team.map((m) => (
-                  <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
-                    <td className="px-3 py-2.5 font-medium text-foreground">{m.name}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">{m.email}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_PILL[m.role]}`}>{m.role}</span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${m.status === "Active" ? "bg-rag-green/15 text-rag-green" : "bg-rag-amber/15 text-rag-amber"}`}>
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{fmtDate(m.lastLogin)}</td>
-                  </tr>
-                ))}
+                {team.map((m) => {
+                  const isSelf = m.email === user?.email || (user?.name === "Test User" && m.email === "s.mitchell@lender.com");
+                  return (
+                    <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+                      <td className="px-3 py-2.5 font-medium text-foreground">{m.name}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">{m.email}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_PILL[m.role]}`}>{m.role}</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${m.status === "Active" ? "bg-rag-green/15 text-rag-green" : "bg-rag-amber/15 text-rag-amber"}`}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{fmtDate(m.lastLogin)}</td>
+                      {isAdmin && (
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 gap-1 text-xs"
+                              onClick={() => {
+                                setEditUser(m);
+                                setEditName(m.name);
+                                setEditRole(m.role);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edit
+                            </Button>
+                            {isSelf ? (
+                              <span className="text-xs text-muted-foreground px-2">(You)</span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-xs text-destructive hover:text-destructive/80"
+                                onClick={() => setRemoveUser(m)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -465,7 +585,16 @@ export default function SettingsPage() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="new-email">Email</Label>
+              <Label htmlFor="new-name">Full Name *</Label>
+              <Input
+                id="new-name"
+                placeholder="Full name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-email">Email Address *</Label>
               <Input
                 id="new-email"
                 type="email"
@@ -475,7 +604,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>Role *</Label>
               <Select value={newRole} onValueChange={(v) => setNewRole(v as TeamMember["role"])}>
                 <SelectTrigger>
                   <SelectValue />
@@ -487,10 +616,87 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="flex gap-4">
+                {(["Active", "Invited"] as const).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="userStatus"
+                      checked={newStatus === s}
+                      onChange={() => setNewStatus(s)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="text-sm text-foreground">{s}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="ghost" onClick={() => setShowAddUser(false)}>Cancel</Button>
-              <Button onClick={handleAddUser} disabled={!newEmail}>Invite</Button>
+              <Button onClick={handleAddUser} disabled={!newEmail || !newName}>Invite</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User modal */}
+      <Dialog open={!!editUser} onOpenChange={(v) => { if (!v) setEditUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update team member details.</DialogDescription>
+          </DialogHeader>
+          {editUser && (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input value={editUser.email} readOnly className="bg-muted/50" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={editRole} onValueChange={(v) => setEditRole(v as TeamMember["role"])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Risk Manager">Risk Manager</SelectItem>
+                    <SelectItem value="Viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setEditUser(null)}>Cancel</Button>
+                <Button onClick={handleEditUser}>Save</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove User confirmation modal */}
+      <Dialog open={!!removeUser} onOpenChange={(v) => { if (!v) setRemoveUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <strong>{removeUser?.name}</strong> from your team?
+              They will immediately lose access to DealerGuard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setRemoveUser(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRemoveUser}>Remove User</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -545,7 +751,7 @@ export default function SettingsPage() {
               Settings Audit Log
             </DialogTitle>
             <DialogDescription>
-              Complete record of all configuration changes made by Super Admin users.
+              Complete record of all configuration changes made by Admin users.
             </DialogDescription>
           </DialogHeader>
           <AuditLogPanel />
