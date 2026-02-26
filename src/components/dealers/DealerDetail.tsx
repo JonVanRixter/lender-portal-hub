@@ -169,13 +169,56 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
 
       {/* 2.2 — Audit Summary Card Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className={`border ${RAG_BG[dealer.ragStatus]}`}>
+      <Card className={`border ${RAG_BG[dealer.ragStatus]}`}>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Overall Score</p>
             <p className="text-3xl font-bold text-foreground mt-1">{dealer.overallScore}</p>
             <p className="text-xs font-medium mt-1" style={{ color: `hsl(var(--rag-${dealer.ragStatus.toLowerCase()}))` }}>
               {RAG_LABEL[dealer.ragStatus]}
             </p>
+            {/* Threshold indicator */}
+            <div className="mt-3 space-y-1.5">
+              <div className="relative h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full transition-all"
+                  style={{
+                    width: `${dealer.overallScore}%`,
+                    backgroundColor: `hsl(var(--rag-${dealer.ragStatus.toLowerCase()}))`,
+                  }}
+                />
+                {/* Green threshold marker */}
+                <div
+                  className="absolute inset-y-0 w-0.5 bg-rag-green"
+                  style={{ left: "75%" }}
+                  title="Green threshold: 75"
+                />
+                {/* Amber threshold marker */}
+                <div
+                  className="absolute inset-y-0 w-0.5 bg-rag-amber"
+                  style={{ left: "50%" }}
+                  title="Amber threshold: 50"
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>0</span>
+                <span className="text-rag-amber">Amber ≥50</span>
+                <span className="text-rag-green">Green ≥75</span>
+                <span>100</span>
+              </div>
+              {dealer.overallScore >= 75 ? (
+                <p className="text-[10px] text-rag-green font-medium">
+                  ✅ {dealer.overallScore - 75} points above Green threshold
+                </p>
+              ) : dealer.overallScore >= 50 ? (
+                <p className="text-[10px] text-rag-amber font-medium">
+                  ⚠️ {75 - dealer.overallScore} points below Green threshold
+                </p>
+              ) : (
+                <p className="text-[10px] text-rag-red font-medium">
+                  ❌ {75 - dealer.overallScore} points below Green threshold · {50 - dealer.overallScore} below Amber
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card className="border-border">
@@ -268,6 +311,26 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
                       <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${RAG_BADGE[s.ragStatus]}`}>
                         {s.ragStatus}
                       </span>
+                    </div>
+                    {/* Section threshold bar */}
+                    <div className="space-y-1">
+                      <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{
+                            width: `${s.score}%`,
+                            backgroundColor: `hsl(var(--rag-${s.ragStatus.toLowerCase()}))`,
+                          }}
+                        />
+                        <div className="absolute inset-y-0 w-0.5 bg-rag-green" style={{ left: "75%" }} />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {s.score >= 75 ? (
+                          <span className="text-rag-green">+{s.score - 75} above threshold</span>
+                        ) : (
+                          <span className="text-rag-amber">{75 - s.score} pts to Green</span>
+                        )}
+                      </p>
                     </div>
                     {/* Notes */}
                     <p className="text-xs text-muted-foreground leading-relaxed">"{s.notes}"</p>
