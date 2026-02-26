@@ -72,6 +72,14 @@ export function AuditReportModal({ dealer, open, onOpenChange }: { dealer: Deale
               <div>
                 <p className="text-xs text-muted-foreground">Overall Score</p>
                 <p className={`text-3xl font-bold ${RAG_COLOUR[dealer.ragStatus]}`}>{dealer.overallScore}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {dealer.overallScore >= 75
+                    ? <span className="text-rag-green font-medium">+{dealer.overallScore - 75} above Green (≥75)</span>
+                    : dealer.overallScore >= 50
+                    ? <span className="text-rag-amber font-medium">{75 - dealer.overallScore} pts below Green (≥75)</span>
+                    : <span className="text-rag-red font-medium">{75 - dealer.overallScore} pts below Green · {50 - dealer.overallScore} below Amber</span>
+                  }
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">RAG Status</p>
@@ -164,6 +172,12 @@ export function AuditReportModal({ dealer, open, onOpenChange }: { dealer: Deale
                         {RESULT_STYLE[s.result].icon} {s.result}
                       </span>
                       <span className="text-xs text-muted-foreground">Score: <strong>{s.score}</strong>/100</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {s.score >= 75
+                          ? <span className="text-rag-green">+{s.score - 75}</span>
+                          : <span className="text-rag-amber">−{75 - s.score}</span>
+                        }
+                      </span>
                       <Badge variant="outline" className={`text-[10px] ${RAG_BG[s.ragStatus]}`}>{s.ragStatus}</Badge>
                     </div>
                   </div>
