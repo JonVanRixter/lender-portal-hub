@@ -58,6 +58,9 @@ export function AuditReportModal({ dealer, open, onOpenChange }: { dealer: Deale
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-semibold">The Compliance Guys Ltd</p>
             <h1 className="text-2xl font-bold tracking-tight">Compliance Audit Report</h1>
             <p className="text-sm text-muted-foreground mt-2">
+              Prepared for: <strong className="text-foreground">Kensington Mortgages Ltd</strong>
+            </p>
+            <p className="text-sm text-muted-foreground">
               Dealer: <strong className="text-foreground">{dealer.tradingName}</strong> ({dealer.name})
             </p>
             <p className="text-xs text-muted-foreground">
