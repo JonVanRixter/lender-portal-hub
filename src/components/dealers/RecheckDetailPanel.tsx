@@ -20,6 +20,7 @@ const STATUS_STYLE: Record<RecheckStatus, { class: string; icon: React.ReactNode
   "In Progress": { class: "bg-rag-amber/15 text-rag-amber border-rag-amber/30", icon: <Clock className="h-3 w-3" />, label: "In Progress — TCG investigating" },
   Completed: { class: "bg-rag-green/15 text-rag-green border-rag-green/30", icon: <CheckCircle2 className="h-3 w-3" />, label: "Completed" },
   Escalated: { class: "bg-rag-red/15 text-rag-red border-rag-red/30", icon: <AlertCircle className="h-3 w-3" />, label: "Escalated" },
+  Dismissed: { class: "bg-muted text-muted-foreground border-border", icon: <XCircle className="h-3 w-3" />, label: "Dismissed" },
 };
 
 const PRIORITY_STYLE: Record<RecheckPriority, { class: string; emoji: string }> = {
@@ -188,7 +189,7 @@ export function RecheckDetailPanel({ request: r }: RecheckDetailPanelProps) {
       )}
 
       {/* Lender actions */}
-      {r.status !== "Completed" && (
+      {r.status !== "Completed" && r.status !== "Dismissed" && (
         <div className="border-t border-border pt-3 space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Lender Actions</p>
 

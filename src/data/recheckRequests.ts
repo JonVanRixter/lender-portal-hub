@@ -5,7 +5,7 @@ export interface RecheckHistoryEntry {
   platform: "Lender" | "TCG";
 }
 
-export type RecheckStatus = "Submitted" | "In Progress" | "Completed" | "Escalated";
+export type RecheckStatus = "Submitted" | "In Progress" | "Completed" | "Escalated" | "Dismissed";
 export type RecheckPriority = "Normal" | "High" | "Critical";
 export type RecheckRequestType = "Lender Re-Check" | "Fail Chase";
 
