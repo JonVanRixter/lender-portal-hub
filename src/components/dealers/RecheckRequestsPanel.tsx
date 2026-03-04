@@ -13,6 +13,7 @@ const STATUS_STYLE: Record<RecheckStatus, { class: string; icon: React.ReactNode
   "In Progress": { class: "bg-rag-amber/15 text-rag-amber border-rag-amber/30", icon: <Clock className="h-3 w-3" /> },
   Completed: { class: "bg-rag-green/15 text-rag-green border-rag-green/30", icon: <CheckCircle2 className="h-3 w-3" /> },
   Escalated: { class: "bg-rag-red/15 text-rag-red border-rag-red/30", icon: <AlertCircle className="h-3 w-3" /> },
+  Dismissed: { class: "bg-muted text-muted-foreground border-border", icon: <AlertCircle className="h-3 w-3" /> },
 };
 
 const PRIORITY_STYLE: Record<RecheckPriority, string> = {

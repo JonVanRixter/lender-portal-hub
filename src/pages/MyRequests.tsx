@@ -15,6 +15,7 @@ const STATUS_PILL: Record<string, { bg: string; text: string; label: string }> =
   "In Progress": { bg: "bg-[#3b82f6]/15", text: "text-[#3b82f6]", label: "🔵 In Progress" },
   Completed:     { bg: "bg-[#16a34a]/15", text: "text-[#16a34a]", label: "✅ Completed" },
   Dismissed:     { bg: "bg-[#6b7280]/15", text: "text-[#6b7280]", label: "Dismissed" },
+  Escalated:     { bg: "bg-[#dc2626]/15", text: "text-[#dc2626]", label: "⚠️ Escalated" },
 };
 
 const PRIORITY_PILL: Record<RecheckPriority, { class: string; emoji: string }> = {

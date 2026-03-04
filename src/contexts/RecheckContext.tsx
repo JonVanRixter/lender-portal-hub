@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { recheckRequests as initialRequests, type RecheckRequest, type RecheckHistoryEntry, type RecheckPriority } from "@/data/recheckRequests";
+import { useAlerts } from "./AlertsContext";
+import type { Alert } from "@/types";
 
 interface SubmitRecheckPayload {
   dealerId: string;
@@ -48,6 +50,52 @@ function computeSlaDays(priority: RecheckPriority): number {
 
 export function RecheckProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<RecheckRequest[]>(initialRequests);
+  const { addAlert } = useAlerts();
+
+  // SLA breach auto-escalation — check every 30s
+  useEffect(() => {
+    const check = () => {
+      setRequests((prev) =>
+        prev.map((r) => {
+          if (r.status === "Completed" || r.status === "Dismissed") return r;
+          const now = new Date();
+          const sla = new Date(r.slaDeadline);
+          if (now > sla && r.priority !== "Critical") {
+            const newPriority: RecheckPriority = r.priority === "Normal" ? "High" : "Critical";
+            const newR = {
+              ...r,
+              priority: newPriority,
+              slaDeadline: computeSlaDeadline(r.requestedDate, newPriority),
+              slaDays: computeSlaDays(newPriority),
+              history: [
+                ...r.history,
+                {
+                  date: now.toISOString(),
+                  action: `SLA breached — priority auto-escalated from ${r.priority} to ${newPriority}`,
+                  user: "System",
+                  platform: "Lender" as const,
+                },
+              ],
+            };
+            addAlert({
+              id: `al-sla-${r.id}-${Date.now()}`,
+              type: "SLA Breach",
+              dealerId: r.dealerId,
+              severity: "High",
+              message: `🔴 SLA breached: ${r.requestType} for ${r.controlName} — ${r.dealerName}. Priority auto-escalated.`,
+              date: now.toISOString(),
+              status: "Pending",
+            });
+            return newR;
+          }
+          return r;
+        })
+      );
+    };
+    const interval = setInterval(check, 30000);
+    check(); // run once immediately
+    return () => clearInterval(interval);
+  }, [addAlert]);
 
   const getRequestsForDealer = useCallback(
     (dealerId: string) => requests.filter((r) => r.dealerId === dealerId),
@@ -62,13 +110,14 @@ export function RecheckProvider({ children }: { children: ReactNode }) {
           r.controlName === controlName &&
           r.sectionName === sectionName &&
           r.status !== "Completed" &&
-          r.status !== "Dismissed" as any
+          r.status !== "Dismissed"
       ),
     [requests]
   );
 
   const submitRecheck = useCallback((partial: SubmitRecheckPayload): RecheckRequest => {
     const now = partial.requestedDate || new Date().toISOString();
+    const slaHours = partial.priority === "Critical" ? 8 : partial.priority === "High" ? 24 : 48;
     const newRequest: RecheckRequest = {
       ...partial,
       id: `rr-${Date.now()}`,
@@ -92,8 +141,32 @@ export function RecheckProvider({ children }: { children: ReactNode }) {
       ],
     };
     setRequests((prev) => [newRequest, ...prev]);
+
+    // Create corresponding alert
+    if (partial.requestType === "Fail Chase") {
+      addAlert({
+        id: `al-fc-${Date.now()}`,
+        type: "Fail Chase Triggered",
+        dealerId: partial.dealerId,
+        severity: "High",
+        message: `⚠️ Fail chase raised: ${partial.controlName} — ${partial.dealerName}. ${partial.reason}. TCG has been notified.`,
+        date: now,
+        status: "Pending",
+      });
+    } else {
+      addAlert({
+        id: `al-rc-${Date.now()}`,
+        type: "Re-Check Submitted",
+        dealerId: partial.dealerId,
+        severity: "Low",
+        message: `Re-check request submitted for ${partial.controlName} — ${partial.dealerName}. TCG will review within ${slaHours} hours.`,
+        date: now,
+        status: "Pending",
+      });
+    }
+
     return newRequest;
-  }, []);
+  }, [addAlert]);
 
   const addLenderNote = useCallback((requestId: string, note: string, userName: string) => {
     const now = new Date().toISOString();
@@ -145,7 +218,7 @@ export function RecheckProvider({ children }: { children: ReactNode }) {
         r.id === requestId
           ? {
               ...r,
-              status: "Completed" as any,
+              status: "Dismissed" as any,
               tcgOutcome: `Dismissed by lender: ${reason}`,
               tcgCompletedDate: now,
               history: [
