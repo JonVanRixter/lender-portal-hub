@@ -3,7 +3,7 @@ export type RagStatus = "Green" | "Amber" | "Red";
 export type DocCategory = "DBS" | "Training" | "Complaints" | "Other";
 export type DocStatus = "Valid" | "Expiring Soon" | "Expired";
 
-export type AlertType = "Threshold Breach" | "Document Expiry" | "Manual Review Required";
+export type AlertType = "Threshold Breach" | "Document Expiry" | "Manual Review Required" | "Re-Check Submitted" | "Re-Check Picked Up" | "Re-Check Completed" | "Fail Chase Triggered" | "Fail Chase Update" | "SLA Breach" | "Re-Check Score Changed";
 export type AlertSeverity = "High" | "Medium" | "Low";
 export type AlertStatus = "Pending" | "Acknowledged";
 

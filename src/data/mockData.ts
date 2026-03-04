@@ -526,6 +526,17 @@ export const initialAlerts: Alert[] = [
   { id: "al013", type: "Document Expiry", dealerId: "d002", severity: "Medium", message: "F&I training certificate for S. Okafor at Meridian Motor Group expires within 30 days.", date: "2026-02-20", status: "Acknowledged" },
   { id: "al014", type: "Document Expiry", dealerId: "d008", severity: "Medium", message: "Training certificate for D. Walsh at Pennine Autos expires within 30 days.", date: "2026-02-08", status: "Pending" },
   { id: "al015", type: "Threshold Breach", dealerId: "d007", severity: "Medium", message: "Northgate Motors score declined from 63 to 55. Persistent Amber with two Red sections.", date: "2026-01-25", status: "Acknowledged" },
+
+  // Re-check & fail chase alerts seeded from rr001–rr004
+  { id: "al016", type: "Re-Check Submitted", dealerId: "d001", severity: "Low", message: "Re-check request submitted for Source of funds — Blackmore Automotive Ltd. TCG will review within 48 hours.", date: "2026-02-20", status: "Pending" },
+  { id: "al017", type: "Fail Chase Triggered", dealerId: "d010", severity: "High", message: "⚠️ Fail chase raised: Legal entity status — Summit Cars. Companies House confirmation statement overdue. TCG has been notified.", date: "2026-02-27", status: "Pending" },
+  { id: "al018", type: "Re-Check Picked Up", dealerId: "d010", severity: "Low", message: "Your fail chase for Legal entity status — Summit Cars has been picked up by TCG.", date: "2026-02-27", status: "Pending" },
+  { id: "al019", type: "Fail Chase Update", dealerId: "d010", severity: "Medium", message: "TCG update on Legal entity status — Summit Cars: Contacted dealer by email 27 Feb — awaiting response. Follow-up call scheduled 03 Mar.", date: "2026-02-27", status: "Pending" },
+  { id: "al020", type: "Re-Check Submitted", dealerId: "d005", severity: "Low", message: "Re-check request submitted for KYC/IDV completed — Westfield Auto Centre Ltd. TCG will review within 48 hours.", date: "2026-02-15", status: "Acknowledged" },
+  { id: "al021", type: "Re-Check Picked Up", dealerId: "d005", severity: "Low", message: "Your re-check request for KYC/IDV completed — Westfield Auto Centre Ltd has been picked up by TCG.", date: "2026-02-15", status: "Acknowledged" },
+  { id: "al022", type: "Re-Check Completed", dealerId: "d005", severity: "Medium", message: "Re-check complete: KYC/IDV completed — Westfield Auto Centre Ltd. Outcome: Confirmed — no change.", date: "2026-02-17", status: "Pending" },
+  { id: "al023", type: "Fail Chase Triggered", dealerId: "d011", severity: "High", message: "⚠️ Fail chase raised: FCA authorisation & permissions — Horizon Motors. FCA authorisation renewal pending and lapsed. TCG has been notified.", date: "2026-02-27", status: "Pending" },
+  { id: "al024", type: "SLA Breach", dealerId: "d011", severity: "High", message: "🔴 SLA breached: Fail Chase for FCA authorisation & permissions — Horizon Motors. Priority auto-escalated.", date: "2026-02-28", status: "Pending" },
 ];
 
 export const activityFeed: ActivityItem[] = [
