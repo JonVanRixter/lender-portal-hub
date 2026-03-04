@@ -347,6 +347,13 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
             {dealer.sections.map((s) => {
               const expanded = expandedSections.has(s.id);
               const controlAreas = getControlAreasForSection(s.name, s.result, s.notes);
+
+              // Section-level request summary
+              const sectionRequests = getRequestsForDealer(dealer.id).filter((r) => r.sectionName === s.name);
+              const activeRechecks = sectionRequests.filter((r) => r.requestType === "Lender Re-Check" && r.status !== "Completed");
+              const activeChases = sectionRequests.filter((r) => r.requestType === "Fail Chase" && r.status !== "Completed");
+              const hasUnpickedChase = activeChases.some((r) => r.status === "Submitted");
+
               return (
                 <Card key={s.id} className="border-border">
                   <CardContent className="p-4 space-y-3">
@@ -369,6 +376,40 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
                         {s.ragStatus}
                       </span>
                     </div>
+
+                    {/* Section-level request summary banner */}
+                    {(activeRechecks.length > 0 || activeChases.length > 0) && (
+                      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          🔄 {activeRechecks.length} re-check{activeRechecks.length !== 1 ? "s" : ""}
+                          {activeRechecks.length > 0 && (
+                            <span className="text-foreground font-medium">
+                              {activeRechecks.some((r) => r.status === "In Progress") ? "in progress" : "submitted"}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          {hasUnpickedChase && (
+                            <span className="relative flex h-2 w-2 mr-0.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rag-red opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-rag-red" />
+                            </span>
+                          )}
+                          ⚠️ {activeChases.length} fail chase{activeChases.length !== 1 ? "s" : ""}
+                          {activeChases.length > 0 && (
+                            <span className="text-rag-red font-medium">
+                              — {activeChases[0].controlName}
+                              {activeChases[0].priority === "Critical"
+                                ? ` [Critical — ${activeChases[0].status}]`
+                                : ` [${activeChases[0].status}]`}
+                              {activeChases.length > 1 && ` +${activeChases.length - 1} more`}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Section threshold bar */}
                     <div className="space-y-1">
                       <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
