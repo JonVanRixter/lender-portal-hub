@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw, FileText } from "lucide-react";
+import { Search, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw, FileText, Eye } from "lucide-react";
 import { useAlerts } from "@/contexts/AlertsContext";
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ const SEVERITY_PILL: Record<AlertSeverity, string> = {
 
 const SEVERITY_ORDER: Record<AlertSeverity, number> = { High: 3, Medium: 2, Low: 1 };
 
-const TYPES: AlertType[] = ["Threshold Breach", "Document Expiry", "Manual Review Required"];
+const TYPES: AlertType[] = ["Threshold Breach", "Document Expiry", "Manual Review Required", "Re-Check Submitted", "Re-Check Picked Up", "Re-Check Completed", "Fail Chase Triggered", "Fail Chase Update", "SLA Breach", "Re-Check Score Changed"];
 const SEVERITIES: AlertSeverity[] = ["High", "Medium", "Low"];
 
 const PAGE_SIZE = 8;
@@ -41,7 +41,7 @@ export default function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | "all">("all");
   const [typeFilter, setTypeFilter] = useState<AlertType | "all">(() => {
     const t = searchParams.get("type");
-    return t === "Threshold Breach" || t === "Document Expiry" || t === "Manual Review Required" ? t : "all";
+    return TYPES.includes(t as AlertType) ? (t as AlertType) : "all";
   });
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
@@ -196,9 +196,12 @@ export default function AlertsPage() {
               <tr><td colSpan={7} className="px-2 py-8 text-center text-muted-foreground">{getEmptyStateMessage()}</td></tr>
             ) : (
               paginated.map((alert) => {
-                const rowHref = alert.type === "Document Expiry"
-                  ? getDocumentLink(alert)
-                  : `/dealers/${alert.dealerId}`;
+                const isRecheckType = ["Re-Check Submitted", "Re-Check Picked Up", "Re-Check Completed", "Fail Chase Triggered", "Fail Chase Update", "SLA Breach", "Re-Check Score Changed"].includes(alert.type);
+                const rowHref = isRecheckType
+                  ? "/requests"
+                  : alert.type === "Document Expiry"
+                    ? getDocumentLink(alert)
+                    : `/dealers/${alert.dealerId}`;
                 const isAcknowledged = alert.status === "Acknowledged";
                 return (
                 <tr
@@ -264,6 +267,17 @@ export default function AlertsPage() {
                         >
                           <FileText className="h-3 w-3" />
                           Doc
+                        </Button>
+                      )}
+                      {isRecheckType && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 gap-0.5 text-[11px] px-1 text-primary hover:text-primary/80"
+                          onClick={() => navigate("/requests")}
+                        >
+                          <Eye className="h-3 w-3" />
+                          View
                         </Button>
                       )}
                     </div>
