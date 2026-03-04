@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DealersProvider } from "@/contexts/DealersContext";
 import { AlertsProvider } from "@/contexts/AlertsContext";
 import { OnboardingWorkflowProvider } from "@/contexts/OnboardingContext";
+import { RecheckProvider } from "@/contexts/RecheckContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
@@ -34,6 +35,7 @@ const App = () => (
         <DealersProvider>
           <AlertsProvider>
             <OnboardingWorkflowProvider>
+              <RecheckProvider>
               <BrowserRouter>
                 <OnboardingProvider>
                   <Routes>
@@ -62,6 +64,7 @@ const App = () => (
                   </Routes>
                 </OnboardingProvider>
               </BrowserRouter>
+              </RecheckProvider>
             </OnboardingWorkflowProvider>
           </AlertsProvider>
         </DealersProvider>

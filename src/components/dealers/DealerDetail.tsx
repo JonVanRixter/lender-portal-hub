@@ -4,15 +4,20 @@ import {
   ArrowLeft, TrendingUp, TrendingDown, Minus, Globe, Building2,
   Download, RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown,
   ChevronUp, Trophy, AlertTriangle, FileText, Calendar, BarChart3,
+  Search, Zap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { documents as allDocuments } from "@/data/mockData";
 import { getControlAreasForSection } from "@/data/controlAreaData";
+import { useRecheck } from "@/contexts/RecheckContext";
 import { RequestReAuditModal } from "./RequestReAuditModal";
+import { RequestRecheckModal } from "./RequestRecheckModal";
+import { RecheckRequestsPanel } from "./RecheckRequestsPanel";
 import { AuditReportModal } from "./AuditReportModal";
 import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange, DocStatus } from "@/types";
 
@@ -80,6 +85,11 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
   const [reAuditOpen, setReAuditOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [recheckModal, setRecheckModal] = useState<{
+    sectionId: string; sectionName: string; controlName: string;
+    result: "Pass" | "Pending" | "Fail"; score: number;
+  } | null>(null);
+  const { getRequestForControl } = useRecheck();
 
   const dealerDocs = useMemo(
     () => allDocuments.filter((d) => d.dealerId === dealer.id),
@@ -351,30 +361,76 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
                       <div className="overflow-x-auto rounded-md border border-border mt-2">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="border-b border-border bg-muted/50">
-                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Control Area</th>
-                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground hidden sm:table-cell">Objective</th>
-                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Result</th>
-                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Risk</th>
-                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Notes</th>
-                            </tr>
+                             <tr className="border-b border-border bg-muted/50">
+                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Control Area</th>
+                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground hidden sm:table-cell">Objective</th>
+                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Result</th>
+                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Risk</th>
+                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Notes</th>
+                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Re-Check</th>
+                             </tr>
                           </thead>
                           <tbody>
-                            {controlAreas.map((ca, idx) => (
-                              <tr key={idx} className="border-b border-border last:border-0">
-                                <td className="px-2 py-1.5 font-medium text-foreground">{ca.controlArea}</td>
-                                <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{ca.objective}</td>
-                                <td className="px-2 py-1.5 text-center">
-                                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${RESULT_PILL[ca.result].class} rounded-full px-1.5 py-0.5`}>
-                                    {ca.result === "Pass" ? "✅" : ca.result === "Pending" ? "⚠️" : "❌"} {ca.result}
-                                  </span>
-                                </td>
-                                <td className={`px-2 py-1.5 text-center text-[10px] font-semibold ${RISK_PILL[ca.riskRating]}`}>
-                                  {ca.riskRating}
-                                </td>
-                                <td className="px-2 py-1.5 text-muted-foreground">{ca.notes}</td>
-                              </tr>
-                            ))}
+                             {controlAreas.map((ca, idx) => {
+                               const existingReq = getRequestForControl(dealer.id, ca.controlArea, s.name);
+                               const isFailChase = ca.result === "Fail";
+                               return (
+                               <tr key={idx} className={`border-b border-border last:border-0 ${isFailChase ? "bg-rag-red/5" : ""}`}>
+                                 <td className="px-2 py-1.5 font-medium text-foreground">
+                                   {ca.controlArea}
+                                   {isFailChase && (
+                                     <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] text-rag-red font-semibold">
+                                       <Zap className="h-2.5 w-2.5" /> Auto-chase
+                                     </span>
+                                   )}
+                                 </td>
+                                 <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{ca.objective}</td>
+                                 <td className="px-2 py-1.5 text-center">
+                                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${RESULT_PILL[ca.result].class} rounded-full px-1.5 py-0.5`}>
+                                     {ca.result === "Pass" ? "✅" : ca.result === "Pending" ? "⚠️" : "❌"} {ca.result}
+                                   </span>
+                                 </td>
+                                 <td className={`px-2 py-1.5 text-center text-[10px] font-semibold ${RISK_PILL[ca.riskRating]}`}>
+                                   {ca.riskRating}
+                                 </td>
+                                 <td className="px-2 py-1.5 text-muted-foreground">{ca.notes}</td>
+                                 <td className="px-2 py-1.5 text-center">
+                                   {existingReq ? (
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold cursor-default ${
+                                           existingReq.status === "Submitted" ? "bg-secondary/15 text-secondary" :
+                                           existingReq.status === "In Progress" ? "bg-rag-amber/15 text-rag-amber" :
+                                           "bg-rag-green/15 text-rag-green"
+                                         }`}>
+                                           {existingReq.status === "Submitted" ? "📨" : existingReq.status === "In Progress" ? "🔄" : "✅"} {existingReq.status}
+                                         </span>
+                                       </TooltipTrigger>
+                                       <TooltipContent className="max-w-xs text-xs">
+                                         <p className="font-medium">{existingReq.requestType}: {existingReq.reason}</p>
+                                         {existingReq.tcgAssignedTo && <p>Assigned to: {existingReq.tcgAssignedTo}</p>}
+                                       </TooltipContent>
+                                     </Tooltip>
+                                   ) : (
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       className="h-5 px-1.5 text-[10px] text-primary gap-0.5"
+                                       onClick={() => setRecheckModal({
+                                         sectionId: s.id,
+                                         sectionName: s.name,
+                                         controlName: ca.controlArea,
+                                         result: ca.result,
+                                         score: s.score,
+                                       })}
+                                     >
+                                       <Search className="h-2.5 w-2.5" /> Request
+                                     </Button>
+                                   )}
+                                 </td>
+                               </tr>
+                               );
+                             })}
                           </tbody>
                         </table>
                       </div>
@@ -524,6 +580,9 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
         </div>
       </div>
 
+      {/* Re-Check Requests Panel */}
+      <RecheckRequestsPanel dealerId={dealer.id} />
+
       {/* Request Re-Audit Modal */}
       <RequestReAuditModal
         open={reAuditOpen}
@@ -531,6 +590,19 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
         dealerName={dealer.tradingName}
       />
       <AuditReportModal dealer={dealer} open={reportOpen} onOpenChange={setReportOpen} />
+      {recheckModal && (
+        <RequestRecheckModal
+          open={!!recheckModal}
+          onClose={() => setRecheckModal(null)}
+          dealerId={dealer.id}
+          dealerName={dealer.name}
+          sectionId={recheckModal.sectionId}
+          sectionName={recheckModal.sectionName}
+          controlName={recheckModal.controlName}
+          currentResult={recheckModal.result}
+          currentScore={recheckModal.score}
+        />
+      )}
     </div>
   );
 }
