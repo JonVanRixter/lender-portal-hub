@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, TrendingUp, TrendingDown, Minus, Globe, Building2,
   Download, RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown,
   ChevronUp, Trophy, AlertTriangle, FileText, Calendar, BarChart3,
-  Search, Zap,
+  Search, Zap, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import { documents as allDocuments } from "@/data/mockData";
 import { getControlAreasForSection } from "@/data/controlAreaData";
 import { useRecheck } from "@/contexts/RecheckContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { RequestReAuditModal } from "./RequestReAuditModal";
 import { RequestRecheckModal } from "./RequestRecheckModal";
+import { RecheckDetailPanel } from "./RecheckDetailPanel";
 import { RecheckRequestsPanel } from "./RecheckRequestsPanel";
 import { AuditReportModal } from "./AuditReportModal";
 import type { Dealer, RagStatus, SectionResult, ActionStatus, AuditChange, DocStatus } from "@/types";
@@ -82,14 +84,59 @@ function getNextReviewDate(lastAudit: string) {
 export function DealerDetail({ dealer }: { dealer: Dealer }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [reAuditOpen, setReAuditOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [expandedControls, setExpandedControls] = useState<Set<string>>(new Set());
   const [recheckModal, setRecheckModal] = useState<{
     sectionId: string; sectionName: string; controlName: string;
     result: "Pass" | "Pending" | "Fail"; score: number;
   } | null>(null);
-  const { getRequestForControl } = useRecheck();
+  const { getRequestForControl, submitRecheck, getRequestsForDealer } = useRecheck();
+
+  // Auto fail chase trigger — on load, check all controls for failed results
+  useEffect(() => {
+    if (!dealer.sections) return;
+    dealer.sections.forEach((s) => {
+      const controlAreas = getControlAreasForSection(s.name, s.result, s.notes);
+      controlAreas.forEach((ca) => {
+        if (ca.result === "Fail") {
+          const existing = getRequestForControl(dealer.id, ca.controlArea, s.name);
+          if (!existing) {
+            const priority = ca.riskRating === "High" ? "Critical" as const : "High" as const;
+            submitRecheck({
+              dealerId: dealer.id,
+              dealerName: dealer.name,
+              lenderId: "l001",
+              lenderName: "Apex Motor Finance Ltd",
+              sectionId: s.id,
+              sectionName: s.name,
+              controlId: `${s.id}c-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              controlName: ca.controlArea,
+              currentResult: "Fail",
+              currentScore: s.score,
+              requestType: "Fail Chase",
+              reason: "Control failed — auto-chase triggered",
+              reasonDetail: `${ca.controlArea} has failed. ${ca.notes}. Automatic chase raised to TCG to pursue outstanding information from the dealer.`,
+              priority,
+              requestedBy: "System (Auto)",
+              requestedDate: new Date().toISOString(),
+            });
+          }
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealer.id]);
+
+  const toggleControl = (key: string) => {
+    setExpandedControls((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   const dealerDocs = useMemo(
     () => allDocuments.filter((d) => d.dealerId === dealer.id),
@@ -358,79 +405,125 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
                     )}
                     {/* 2.6 — Control Area Detail Table */}
                     {expanded && controlAreas.length > 0 && (
-                      <div className="overflow-x-auto rounded-md border border-border mt-2">
+                      <div className="rounded-md border border-border mt-2 space-y-0">
                         <table className="w-full text-xs">
                           <thead>
-                             <tr className="border-b border-border bg-muted/50">
-                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Control Area</th>
-                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground hidden sm:table-cell">Objective</th>
-                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Result</th>
-                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Risk</th>
-                               <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Notes</th>
-                               <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Re-Check</th>
-                             </tr>
+                            <tr className="border-b border-border bg-muted/50">
+                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground">Control Area</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Result</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Risk</th>
+                              <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground hidden sm:table-cell">Notes</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-muted-foreground">Status</th>
+                              <th className="px-2 py-1.5 text-right font-semibold text-muted-foreground">Actions</th>
+                            </tr>
                           </thead>
                           <tbody>
-                             {controlAreas.map((ca, idx) => {
-                               const existingReq = getRequestForControl(dealer.id, ca.controlArea, s.name);
-                               const isFailChase = ca.result === "Fail";
-                               return (
-                               <tr key={idx} className={`border-b border-border last:border-0 ${isFailChase ? "bg-rag-red/5" : ""}`}>
-                                 <td className="px-2 py-1.5 font-medium text-foreground">
-                                   {ca.controlArea}
-                                   {isFailChase && (
-                                     <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] text-rag-red font-semibold">
-                                       <Zap className="h-2.5 w-2.5" /> Auto-chase
-                                     </span>
-                                   )}
-                                 </td>
-                                 <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell">{ca.objective}</td>
-                                 <td className="px-2 py-1.5 text-center">
-                                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${RESULT_PILL[ca.result].class} rounded-full px-1.5 py-0.5`}>
-                                     {ca.result === "Pass" ? "✅" : ca.result === "Pending" ? "⚠️" : "❌"} {ca.result}
-                                   </span>
-                                 </td>
-                                 <td className={`px-2 py-1.5 text-center text-[10px] font-semibold ${RISK_PILL[ca.riskRating]}`}>
-                                   {ca.riskRating}
-                                 </td>
-                                 <td className="px-2 py-1.5 text-muted-foreground">{ca.notes}</td>
-                                 <td className="px-2 py-1.5 text-center">
-                                   {existingReq ? (
-                                     <Tooltip>
-                                       <TooltipTrigger asChild>
-                                         <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold cursor-default ${
-                                           existingReq.status === "Submitted" ? "bg-secondary/15 text-secondary" :
-                                           existingReq.status === "In Progress" ? "bg-rag-amber/15 text-rag-amber" :
-                                           "bg-rag-green/15 text-rag-green"
-                                         }`}>
-                                           {existingReq.status === "Submitted" ? "📨" : existingReq.status === "In Progress" ? "🔄" : "✅"} {existingReq.status}
-                                         </span>
-                                       </TooltipTrigger>
-                                       <TooltipContent className="max-w-xs text-xs">
-                                         <p className="font-medium">{existingReq.requestType}: {existingReq.reason}</p>
-                                         {existingReq.tcgAssignedTo && <p>Assigned to: {existingReq.tcgAssignedTo}</p>}
-                                       </TooltipContent>
-                                     </Tooltip>
-                                   ) : (
-                                     <Button
-                                       variant="ghost"
-                                       size="sm"
-                                       className="h-5 px-1.5 text-[10px] text-primary gap-0.5"
-                                       onClick={() => setRecheckModal({
-                                         sectionId: s.id,
-                                         sectionName: s.name,
-                                         controlName: ca.controlArea,
-                                         result: ca.result,
-                                         score: s.score,
-                                       })}
-                                     >
-                                       <Search className="h-2.5 w-2.5" /> Request
-                                     </Button>
-                                   )}
-                                 </td>
-                               </tr>
-                               );
-                             })}
+                            {controlAreas.map((ca, idx) => {
+                              const existingReq = getRequestForControl(dealer.id, ca.controlArea, s.name);
+                              const isFailChase = ca.result === "Fail";
+                              const controlKey = `${s.id}-${idx}`;
+                              const isControlExpanded = expandedControls.has(controlKey);
+
+                              return (
+                                <React.Fragment key={idx}>
+                                  <tr className={`border-b border-border last:border-0 ${isFailChase ? "bg-rag-red/5" : ""}`}>
+                                    <td className="px-2 py-1.5 font-medium text-foreground">
+                                      {ca.controlArea}
+                                    </td>
+                                    <td className="px-2 py-1.5 text-center">
+                                      <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${RESULT_PILL[ca.result].class} rounded-full px-1.5 py-0.5`}>
+                                        {ca.result === "Pass" ? "✅" : ca.result === "Pending" ? "⚠️" : "❌"} {ca.result}
+                                      </span>
+                                    </td>
+                                    <td className={`px-2 py-1.5 text-center text-[10px] font-semibold ${RISK_PILL[ca.riskRating]}`}>
+                                      {ca.riskRating}
+                                    </td>
+                                    <td className="px-2 py-1.5 text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">{ca.notes}</td>
+                                    <td className="px-2 py-1.5 text-center">
+                                      {existingReq ? (
+                                        <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                                          existingReq.requestType === "Fail Chase" ? "bg-rag-red/15 text-rag-red" :
+                                          existingReq.status === "Submitted" ? "bg-secondary/15 text-secondary" :
+                                          existingReq.status === "In Progress" ? "bg-rag-amber/15 text-rag-amber" :
+                                          "bg-rag-green/15 text-rag-green"
+                                        }`}>
+                                          {existingReq.requestType === "Fail Chase"
+                                            ? <>⚠️ Chase {existingReq.status}</>
+                                            : <>{existingReq.status === "Submitted" ? "🔄" : existingReq.status === "In Progress" ? "🔄" : "✅"} Re-check {existingReq.status.toLowerCase()}</>
+                                          }
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-muted-foreground">—</span>
+                                      )}
+                                    </td>
+                                    <td className="px-2 py-1.5 text-right">
+                                      {existingReq ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className={`h-5 px-1.5 text-[10px] gap-0.5 ${isFailChase ? "text-rag-red" : "text-primary"}`}
+                                          onClick={() => toggleControl(controlKey)}
+                                        >
+                                          <Eye className="h-2.5 w-2.5" />
+                                          {isControlExpanded ? "Hide" : isFailChase ? "View Chase" : "View Re-Check"}
+                                        </Button>
+                                      ) : isFailChase ? (
+                                        <span className="text-[10px] text-muted-foreground italic">Auto-chase pending…</span>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-5 px-1.5 text-[10px] gap-0.5"
+                                          onClick={() => setRecheckModal({
+                                            sectionId: s.id,
+                                            sectionName: s.name,
+                                            controlName: ca.controlArea,
+                                            result: ca.result,
+                                            score: s.score,
+                                          })}
+                                        >
+                                          🔄 Request Re-Check
+                                        </Button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {/* Inline detail panel */}
+                                  {isControlExpanded && existingReq && (
+                                    <tr>
+                                      <td colSpan={6} className="p-0">
+                                        <div className="p-2 bg-muted/20">
+                                          <RecheckDetailPanel request={existingReq} />
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {/* Fail chase banner for failed controls */}
+                                  {isFailChase && existingReq && !isControlExpanded && (
+                                    <tr>
+                                      <td colSpan={6} className="px-2 py-1.5 bg-rag-red/5 border-b border-border">
+                                        <div className="flex items-center justify-between text-[10px]">
+                                          <span className="flex items-center gap-1 text-rag-red font-semibold">
+                                            <Zap className="h-3 w-3" /> FAIL CHASE ACTIVE
+                                            <span className="font-normal text-muted-foreground ml-1">
+                                              · {existingReq.status}
+                                              {existingReq.tcgAssignedTo && ` · Assigned: ${existingReq.tcgAssignedTo}`}
+                                            </span>
+                                          </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-4 px-1 text-[10px] text-rag-red gap-0.5"
+                                            onClick={() => toggleControl(controlKey)}
+                                          >
+                                            <Eye className="h-2.5 w-2.5" /> View Chase Details
+                                          </Button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -601,6 +694,7 @@ export function DealerDetail({ dealer }: { dealer: Dealer }) {
           controlName={recheckModal.controlName}
           currentResult={recheckModal.result}
           currentScore={recheckModal.score}
+          lastCheckedDate={dealer.lastAuditDate}
         />
       )}
     </div>
