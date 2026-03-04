@@ -1,0 +1,40 @@
+{
+  "description": "Data contract for re-check and fail chase requests between Lender Portal and TCG Oversight Platform",
+  "lenderCanDo": [
+    "Submit re-check requests for any control",
+    "View status and TCG updates",
+    "Add lender notes visible to TCG",
+    "Escalate priority (one-way)",
+    "Dismiss requests (with mandatory reason for fail chases)"
+  ],
+  "lenderCannotDo": [
+    "Edit control results or scores",
+    "Assign TCG users",
+    "Mark requests as complete",
+    "Override TCG outcomes"
+  ],
+  "tcgCanDo": [
+    "View all incoming requests across all lenders",
+    "Assign to TCG ops user",
+    "Add TCG notes (visible to lender)",
+    "Add TCG internal notes (NOT visible to lender)",
+    "Mark as In Progress / Completed / Referred",
+    "Record outcome: Confirmed / Updated / Referred to Manual Review",
+    "Contact dealer for missing information",
+    "Update control result and score after re-check"
+  ],
+  "tcgCannotDo": [
+    "Delete lender requests",
+    "Edit lender notes",
+    "Dismiss requests on behalf of lender"
+  ],
+  "autoChaseRules": {
+    "trigger": "Any control with result = Fail",
+    "dedupe": "Only one open chase per dealerId + controlId at a time",
+    "priorityMapping": {
+      "highRiskControl": "Critical — 8 hour SLA",
+      "mediumRiskControl": "High — 24 hour SLA"
+    },
+    "escalationPath": "If SLA breached → auto-escalate to Critical → TCG ops manager alerted"
+  }
+}
