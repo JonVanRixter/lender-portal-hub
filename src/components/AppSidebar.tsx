@@ -4,6 +4,7 @@ import {
   Building2,
   FileText,
   AlertTriangle,
+  ClipboardList,
   ShieldBan,
   BarChart3,
   Settings,
@@ -17,6 +18,7 @@ const navItems = [
   { title: "Dealers", path: "/dealers", icon: Building2 },
   { title: "Documents", path: "/documents", icon: FileText },
   { title: "Alerts", path: "/alerts", icon: AlertTriangle },
+  { title: "My Requests", path: "/requests", icon: ClipboardList },
   { title: "Do Not Deal", path: "/do-not-deal", icon: ShieldBan },
   { title: "Reports", path: "/reports", icon: BarChart3 },
   { title: "Settings", path: "/settings", icon: Settings },
@@ -46,7 +48,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
           return (
             <NavLink
               key={item.path}

@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import OnboardingNew from "./pages/OnboardingNew";
 import OnboardingPreScreening from "./pages/OnboardingPreScreening";
 import OnboardingChecklist from "./pages/OnboardingChecklist";
+import MyRequests from "./pages/MyRequests";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,8 @@ const App = () => (
                       <Route path="/dealers/:id" element={<Dealers />} />
                       <Route path="/documents" element={<Documents />} />
                       <Route path="/alerts" element={<Alerts />} />
+                      <Route path="/requests" element={<MyRequests />} />
+                      <Route path="/requests/:requestId" element={<MyRequests />} />
                       <Route path="/do-not-deal" element={<DoNotDeal />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/settings" element={<SettingsPage />} />
