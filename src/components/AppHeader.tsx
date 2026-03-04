@@ -79,7 +79,10 @@ export function AppHeader({ onMenuToggle }: AppHeaderProps) {
             <Button variant="ghost" size="icon" className="relative text-primary-foreground hover:bg-white/10" data-tour="notification-bell">
               <Bell className="h-5 w-5" />
               {pendingCount > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+                <span
+                  key={pendingCount}
+                  className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground animate-[badge-bounce_0.4s_ease-out]"
+                >
                   {pendingCount > 9 ? "9+" : pendingCount}
                 </span>
               )}
